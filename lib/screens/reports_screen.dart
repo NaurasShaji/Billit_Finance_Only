@@ -42,9 +42,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
     doc.addPage(pw.MultiPage(pageFormat: PdfPageFormat.a4, build: (_) => [
       pw.Text('Billit Finance Report', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
       pw.Text(label), pw.SizedBox(height: 18),
-      pw.Text('Expenses: ₹${expenseTotal.toStringAsFixed(2)}'),
-      pw.Text('Payroll: ₹${payrollTotal.toStringAsFixed(2)}'),
-      pw.Text('Total outflow: ₹${(expenseTotal + payrollTotal).toStringAsFixed(2)}'),
+      pw.Text('Expenses: INR ${expenseTotal.toStringAsFixed(2)}'),
+      pw.Text('Payroll: INR ${payrollTotal.toStringAsFixed(2)}'),
+      pw.Text('Total outflow: INR ${(expenseTotal + payrollTotal).toStringAsFixed(2)}'),
       pw.SizedBox(height: 18),
       pw.Text('Expense details', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
       pw.TableHelper.fromTextArray(headers: ['Date','Category','Description','Amount'], data: expenses.map((e) => [DateFormat('dd MMM yyyy').format(e.date), e.category, e.description, e.amount.toStringAsFixed(2)]).toList()),
