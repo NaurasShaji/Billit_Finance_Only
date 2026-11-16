@@ -32,7 +32,7 @@ class _BackupScreenState extends State<BackupScreen> {
   }
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Google Drive Backup'), actions: [IconButton(tooltip: 'Log out', onPressed: onLogout, icon: const Icon(Icons.logout))]),
+    appBar: AppBar(title: const Text('Google Drive Backup'), actions: [IconButton(tooltip: 'Log out', onPressed: widget.onLogout, icon: const Icon(Icons.logout))]),
     body: ListView(padding: const EdgeInsets.all(16), children: [
       Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
