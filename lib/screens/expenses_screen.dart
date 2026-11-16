@@ -16,6 +16,8 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   bool loading = true;
   String query = '';
   String category = 'All';
+  final List<String> customCategories = [];
+  List<String> get allCategories => {...categories, ...customCategories, ...items.map((e) => e.category)}.toList()..sort();
   final search = TextEditingController();
   static const categories = [
     'Rent', 'Utilities', 'Transport', 'Supplies', 'Maintenance',
@@ -44,11 +46,38 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
       builder: (dialogContext) => StatefulBuilder(builder: (dialogContext, update) => AlertDialog(
         title: Text(old == null ? 'Add expense' : 'Edit expense'),
         content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-          DropdownButtonFormField<String>(
-            value: categories.contains(categoryController.text) ? categoryController.text : 'Miscellaneous',
-            items: categories.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
-            onChanged: (value) => update(() => categoryController.text = value ?? 'Miscellaneous'),
-          ),
+          Row(children: [
+            Expanded(child: DropdownButtonFormField<String>(
+              value: allCategories.contains(categoryController.text) ? categoryController.text : 'Miscellaneous',
+              items: allCategories.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
+              onChanged: (value) => update(() => categoryController.text = value ?? 'Miscellaneous'),
+              decoration: const InputDecoration(labelText: 'Category'),
+            )),
+            IconButton(
+              tooltip: 'Add category',
+              icon: const Icon(Icons.add_circle_outline),
+              onPressed: () async {
+                final controller = TextEditingController();
+                final result = await showDialog<String>(
+                  context: dialogContext,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('New expense category'),
+                    content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'Category name')),
+                    actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
+                      FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Add')),
+                    ],
+                  ),
+                );
+                final name = result?.trim() ?? '';
+                controller.dispose();
+                if (name.isNotEmpty) {
+                  customCategories.add(name);
+                  update(() => categoryController.text = name);
+                }
+              },
+            ),
+          ]),
           FinanceUi.amountField(amountController),
           TextField(controller: descriptionController, decoration: const InputDecoration(labelText: 'Description')),
           TextButton.icon(
