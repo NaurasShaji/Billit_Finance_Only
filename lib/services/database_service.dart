@@ -113,7 +113,7 @@ class DatabaseService {
   Future<List<IncomePayment>> incomePayments(int incomeId) async => (await (await database).query('income_payments', where: 'income_id = ?', whereArgs: [incomeId], orderBy: 'date')).map(IncomePayment.fromMap).toList();
   Future<double> incomeCollected({DateTime? start, DateTime? end}) async {
     final db = await database;
-    final result = await db.rawQuery('SELECT COALESCE(SUM(p.amount),0) total FROM income_payments p JOIN income_entries i ON i.id=p.income_id WHERE (? IS NULL OR i.date >= ?) AND (? IS NULL OR i.date < ?)', [start?.toIso8601String(), start?.toIso8601String(), end?.toIso8601String(), end?.toIso8601String()]);
+    final result = await db.rawQuery('SELECT COALESCE(SUM(p.amount),0) total FROM income_payments p WHERE (? IS NULL OR p.date >= ?) AND (? IS NULL OR p.date < ?)', [start?.toIso8601String(), start?.toIso8601String(), end?.toIso8601String(), end?.toIso8601String()]);
     return (result.first['total'] as num).toDouble();
   }
   Future<int> addCreditParty(CreditParty party) async => (await database).insert('credit_parties', party.toMap()..remove('id'));
