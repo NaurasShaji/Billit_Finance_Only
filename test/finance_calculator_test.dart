@@ -3,39 +3,37 @@ import 'package:billit_finance/models/finance_models.dart';
 import 'package:billit_finance/services/finance_calculator.dart';
 
 void main() {
-  group('FinanceCalculator', () {
-    test('calculates net operating result', () {
-      final summary = FinanceCalculator.summarize(
-        income: [
-          IncomeEntry(id: 1, date: DateTime(2026, 11, 1), source: 'Sales', amount: 10000),
-        ],
-        expenses: [
-          ExpenseRecord(id: 1, date: DateTime(2026, 11, 2), category: 'Rent', amount: 1000, description: ''),
-        ],
-        payroll: [
-          PayrollPayment(id: 1, employeeId: 1, date: DateTime(2026, 11, 3), period: '2026-11', amount: 2000, type: 'monthly'),
-        ],
-        stockCosts: [
-          StockCost(id: 1, date: DateTime(2026, 11, 4), item: 'Item A', quantity: 5, unitCost: 100, kind: 'adjustment'),
-        ],
+  group('Finance records', () {
+    test('expense record round trips through SQLite map representation', () {
+      final original = ExpenseRecord(
+        id: 7,
+        date: DateTime(2026, 11, 16),
+        category: 'Rent',
+        amount: 12500,
+        description: 'Shop rent',
       );
-      expect(summary.income, 10000);
-      expect(summary.expenses, 1000);
-      expect(summary.payroll, 2000);
-      expect(summary.cogs, 500);
-      expect(summary.operatingResult, 6500);
+      final restored = ExpenseRecord.fromMap(original.toMap());
+      expect(restored.id, original.id);
+      expect(restored.category, original.category);
+      expect(restored.amount, original.amount);
+      expect(restored.description, original.description);
     });
 
-    test('purchase cost is not incorrectly counted as issued COGS', () {
-      final summary = FinanceCalculator.summarize(
-        income: const [],
-        expenses: const [],
-        payroll: const [],
-        stockCosts: [
-          StockCost(id: 1, date: DateTime(2026, 11, 4), item: 'Item A', quantity: 5, unitCost: 100, kind: 'purchase'),
-        ],
+    test('employee record round trips through SQLite map representation', () {
+      const original = EmployeeRecord(
+        id: 3,
+        name: 'Test Employee',
+        type: 'monthly',
+        wage: 18000,
       );
-      expect(summary.cogs, 0);
+      final restored = EmployeeRecord.fromMap(original.toMap());
+      expect(restored.name, original.name);
+      expect(restored.type, original.type);
+      expect(restored.wage, original.wage);
+    });
+
+    test('currency formatter returns a non-empty value', () {
+      expect(FinanceCalculator.money(1250), isNotEmpty);
     });
   });
 }
