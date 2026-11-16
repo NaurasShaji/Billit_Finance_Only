@@ -105,22 +105,47 @@ class DriveBackupService {
     final builder = BytesBuilder();
     await for (final chunk in media.stream) { builder.add(chunk); }
     final decoded = jsonDecode(utf8.decode(builder.takeBytes()));
-    if (decoded is! Map || decoded['format'] != 'billit-finance-sqlite-json' || decoded['version'] != 1) {
-      throw const FormatException('This is not a compatible Billit Finance backup.');
+    if (decoded is! Map) {
+      throw const FormatException('This is not a valid Billit backup.');
+    }
+    final isFinanceBackup = decoded['format'] == 'billit-finance-sqlite-json' && decoded['version'] == 1;
+    final isLegacyBillitBackup = decoded['expenses'] is List && decoded['employees'] is List;
+    if (!isFinanceBackup && !isLegacyBillitBackup) {
+      throw const FormatException('This backup does not contain compatible Billit finance data.');
     }
     final db = await DatabaseService.instance.database;
     await db.transaction((txn) async {
       await txn.delete('payroll_payments');
       await txn.delete('expenses');
       await txn.delete('employees');
-      for (final row in (decoded['employees'] as List? ?? const [])) {
-        await txn.insert('employees', Map<String, Object?>.from(row as Map));
+      for (final raw in (decoded['employees'] as List? ?? const [])) {
+        final row = Map<String, Object?>.from(raw as Map);
+        if (isLegacyBillitBackup) {
+          await txn.insert('employees', {
+            'name': row['name'] ?? '',
+            'type': row['type'] == 'monthly' ? 'monthly' : 'daily',
+            'wage': (row['wage'] as num?)?.toDouble() ?? 0,
+            'active': 1,
+          });
+        } else {
+          await txn.insert('employees', row);
+        }
       }
-      for (final row in (decoded['expenses'] as List? ?? const [])) {
-        await txn.insert('expenses', Map<String, Object?>.from(row as Map));
+      for (final raw in (decoded['expenses'] as List? ?? const [])) {
+        final row = Map<String, Object?>.from(raw as Map);
+        if (isLegacyBillitBackup) {
+          await txn.insert('expenses', {
+            'date': row['date'] ?? DateTime.now().toIso8601String(),
+            'category': row['category'] ?? 'Miscellaneous',
+            'amount': (row['amount'] as num?)?.toDouble() ?? 0,
+            'description': row['description'] ?? '',
+          });
+        } else {
+          await txn.insert('expenses', row);
+        }
       }
-      for (final row in (decoded['payroll_payments'] as List? ?? const [])) {
-        await txn.insert('payroll_payments', Map<String, Object?>.from(row as Map));
+      for (final raw in (decoded['payroll_payments'] as List? ?? const [])) {
+        await txn.insert('payroll_payments', Map<String, Object?>.from(raw as Map));
       }
     });
   }
