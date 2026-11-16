@@ -4,6 +4,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:googleapis/drive/v3.dart' as drive;
 import 'package:http/http.dart' as http;
 import 'database_service.dart';
+import 'package:sqflite/sqflite.dart';
 
 class _AuthClient extends http.BaseClient {
   _AuthClient(this.headers);
