@@ -71,7 +71,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ...payroll.map((e) => ['Payroll', DateFormat('yyyy-MM-dd').format(e.date), e.type, e.note, e.amount.toStringAsFixed(2)].map(_csvCell).join(',')),
       ['', '', '', 'Total outflow', (expenseTotal + payrollTotal).toStringAsFixed(2)].map(_csvCell).join(','),
     ];
-    return Uint8List.fromList(utf8.encode('\\uFEFF${rows.join('\\r\\n')}'));
+    return Uint8List.fromList(utf8.encode('\uFEFF${rows.join('\r\n')}'));
   }
   Future<void> _downloadCsv() async {
     final path = await FilePicker.platform.saveFile(
@@ -103,6 +103,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
       Card(child: Padding(padding: const EdgeInsets.all(16), child: Wrap(spacing: 10, runSpacing: 10, children: [
         FilledButton.icon(onPressed: _download, icon: const Icon(Icons.download), label: const Text('Download PDF')),
         OutlinedButton.icon(onPressed: _share, icon: const Icon(Icons.share), label: const Text('Share PDF')),
+        OutlinedButton.icon(onPressed: _downloadCsv, icon: const Icon(Icons.table_view), label: const Text('Download CSV')),
+        OutlinedButton.icon(onPressed: _shareCsv, icon: const Icon(Icons.share_outlined), label: const Text('Share CSV')),
       ]))),
       const Text('Expense and payroll details are included in the exported report.'),
     ]),
