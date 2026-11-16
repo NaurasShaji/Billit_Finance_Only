@@ -111,6 +111,8 @@ class DriveBackupService {
   }
 
   Future<void> restore(String fileId) async {
+    // Preserve the current local books in Drive before any destructive restore.
+    await createBackup();
     final api = await _api();
     final media = await api.files.get(fileId,
       downloadOptions: drive.DownloadOptions.fullMedia) as drive.Media;
