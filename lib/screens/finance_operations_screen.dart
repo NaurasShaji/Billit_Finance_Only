@@ -20,7 +20,8 @@ class _IncomeTabState extends State<_IncomeTab>{
     final amount=TextEditingController(),cost=TextEditingController(text:'0'),paid=TextEditingController(text:'0'),desc=TextEditingController();String method='cash';
     final ok=await showDialog<bool>(context:context,builder:(c)=>StatefulBuilder(builder:(c,u)=>AlertDialog(title:const Text('Add sale / income'),content:Column(mainAxisSize:MainAxisSize.min,children:[
       TextField(controller:amount,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Sale total (₹)')),
-      TextField(controller:cost,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cost of goods sold (₹)',helperText:'Optional; required for meaningful profit')),\n      TextField(controller:paid,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Collected now (₹)',helperText:'Remaining amount stays outstanding')),
+      TextField(controller:cost,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cost of goods sold (₹)',helperText:'Optional; required for meaningful profit')),
+      TextField(controller:paid,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Collected now (₹)',helperText:'Remaining amount stays outstanding')),
       DropdownButtonFormField<String>(value:method,items:const ['cash','upi','card','bank','other'].map((x)=>DropdownMenuItem(value:x,child:Text(x.toUpperCase()))).toList(),onChanged:(v)=>u(()=>method=v??'cash')),
       TextField(controller:desc,decoration:const InputDecoration(labelText:'Description / bill reference')),
     ]),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Save'))])));
