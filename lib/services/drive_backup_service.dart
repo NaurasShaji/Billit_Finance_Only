@@ -172,6 +172,27 @@ class DriveBackupService {
         for (final raw in (decoded['credit_transactions'] as List? ?? const [])) { await txn.insert('credit_transactions', Map<String, Object?>.from(raw as Map)); }
         for (final raw in (decoded['cash_sessions'] as List? ?? const [])) { await txn.insert('cash_sessions', Map<String, Object?>.from(raw as Map)); }
         for (final raw in (decoded['cash_transactions'] as List? ?? const [])) { await txn.insert('cash_transactions', Map<String, Object?>.from(raw as Map)); }
+      } else if (isLegacyBillitBackup) {
+        // Convert Billit's existing sales into income records while preserving
+        // the original sale ID for idempotent future imports.
+        for (final raw in (decoded['sales'] as List? ?? const [])) {
+          final sale = Map<String, Object?>.from(raw as Map);
+          final saleId = (sale['id'] ?? '').toString();
+          final amount = (sale['totalAmount'] as num?)?.toDouble() ?? 0;
+          if (saleId.isEmpty || amount <= 0) continue;
+          final incomeId = await txn.insert('income_entries', {
+            'date': sale['date'] ?? DateTime.now().toIso8601String(),
+            'amount': amount,
+            'cost_amount': (sale['totalCost'] as num?)?.toDouble() ?? 0,
+            'description': 'Billit sale ' + saleId + ((sale['customerName'] as String?)?.isNotEmpty == true ? ' • ' + (sale['customerName'] as String) : ''),
+            'source': 'billit_import',
+            'external_id': 'billit:' + saleId,
+          }, conflictAlgorithm: ConflictAlgorithm.ignore);
+          if (incomeId > 0) {
+            final method = switch ((sale['payment'] ?? 'cash').toString()) { 'upi' => 'upi', 'card' => 'card', _ => 'cash' };
+            await txn.insert('income_payments', {'income_id': incomeId, 'date': sale['date'] ?? DateTime.now().toIso8601String(), 'method': method, 'amount': amount});
+          }
+        }
       }
     });
   }
