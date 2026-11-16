@@ -1,0 +1,92 @@
+import 'dart:typed_data';
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:file_picker/file_picker.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:pdf/pdf.dart';
+import 'package:share_plus/share_plus.dart';
+import '../models/finance_models.dart';
+import '../services/database_service.dart';
+
+class ReportsScreen extends StatefulWidget {
+  const ReportsScreen({super.key});
+  @override
+  State<ReportsScreen> createState() => _ReportsScreenState();
+}
+class _ReportsScreenState extends State<ReportsScreen> {
+  DateTime anchor = DateTime.now();
+  bool loading = false;
+  List<ExpenseRecord> expenses = [];
+  List<PayrollPayment> payroll = [];
+  DateTime get start => DateTime(anchor.year, anchor.month, 1);
+  DateTime get end => DateTime(anchor.year, anchor.month + 1, 1);
+  Future<void> load() async {
+    setState(() => loading = true);
+    final values = await Future.wait([
+      DatabaseService.instance.expenses(start: start, end: end),
+      DatabaseService.instance.payroll(start: start, end: end),
+    ]);
+    if (!mounted) return;
+    setState(() { expenses = values[0] as List<ExpenseRecord>; payroll = values[1] as List<PayrollPayment>; loading = false; });
+  }
+  @override
+  void initState() { super.initState(); load(); }
+  double get expenseTotal => expenses.fold(0, (s, e) => s + e.amount);
+  double get payrollTotal => payroll.fold(0, (s, e) => s + e.amount);
+  String get label => DateFormat('MMMM yyyy').format(anchor);
+  String money(double v) => NumberFormat.currency(locale: 'en_IN', symbol: '₹').format(v);
+
+  Future<Uint8List> _pdf() async {
+    final doc = pw.Document();
+    doc.addPage(pw.MultiPage(pageFormat: PdfPageFormat.a4, build: (_) => [
+      pw.Text('Billit Finance Report', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
+      pw.Text(label), pw.SizedBox(height: 18),
+      pw.Text('Expenses: ₹${expenseTotal.toStringAsFixed(2)}'),
+      pw.Text('Payroll: ₹${payrollTotal.toStringAsFixed(2)}'),
+      pw.Text('Total outflow: ₹${(expenseTotal + payrollTotal).toStringAsFixed(2)}'),
+      pw.SizedBox(height: 18),
+      pw.Text('Expense details', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
+      pw.TableHelper.fromTextArray(headers: ['Date','Category','Description','Amount'], data: expenses.map((e) => [DateFormat('dd MMM yyyy').format(e.date), e.category, e.description, e.amount.toStringAsFixed(2)]).toList()),
+      pw.SizedBox(height: 18),
+      pw.Text('Payroll details', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
+      pw.TableHelper.fromTextArray(headers: ['Date','Type','Note','Amount'], data: payroll.map((e) => [DateFormat('dd MMM yyyy').format(e.date), e.type, e.note, e.amount.toStringAsFixed(2)]).toList()),
+    ]));
+    return Uint8List.fromList(await doc.save());
+  }
+  Future<void> _download() async {
+    final bytes = await _pdf();
+    final path = await FilePicker.platform.saveFile(
+      dialogTitle: 'Save finance report',
+      fileName: 'billit_finance_${anchor.year}_${anchor.month.toString().padLeft(2, '0')}.pdf',
+      bytes: bytes,
+    );
+    if (mounted && path != null) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report saved.')));
+  }
+  Future<void> _share() async {
+    final bytes = await _pdf();
+    await Share.shareXFiles([XFile.fromData(bytes, mimeType: 'application/pdf', name: 'billit_finance_report.pdf')], subject: 'Billit Finance Report - $label');
+  }
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Finance Reports')),
+    body: loading ? const Center(child: CircularProgressIndicator()) : ListView(padding: const EdgeInsets.all(16), children: [
+      Card(child: Row(children: [
+        IconButton(onPressed: () { anchor = DateTime(anchor.year, anchor.month - 1); load(); }, icon: const Icon(Icons.chevron_left)),
+        Expanded(child: Text(label, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold))),
+        IconButton(onPressed: () { anchor = DateTime(anchor.year, anchor.month + 1); load(); }, icon: const Icon(Icons.chevron_right)),
+      ])),
+      Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        _line('Expenses', expenseTotal), _line('Payroll', payrollTotal), const Divider(), _line('Total outflow', expenseTotal + payrollTotal, bold: true),
+      ]))),
+      Card(child: Padding(padding: const EdgeInsets.all(16), child: Wrap(spacing: 10, runSpacing: 10, children: [
+        FilledButton.icon(onPressed: _download, icon: const Icon(Icons.download), label: const Text('Download PDF')),
+        OutlinedButton.icon(onPressed: _share, icon: const Icon(Icons.share), label: const Text('Share PDF')),
+      ]))),
+      const Text('Expense and payroll details are included in the exported report.'),
+    ]),
+  );
+  Widget _line(String title, double value, {bool bold = false}) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(children: [Expanded(child: Text(title, style: TextStyle(fontWeight: bold ? FontWeight.bold : FontWeight.normal))), Text(money(value), style: TextStyle(fontWeight: bold ? FontWeight.bold : FontWeight.normal))]),
+  );
+}
