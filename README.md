@@ -16,7 +16,7 @@ No separate income register, bank reconciliation, COGS/stock-cost module, sales 
 
 ## Storage
 
-The local database is `billit_finance.db`, with `expenses`, `employees` and `payroll_payments` tables. Google Drive backups contain only those three tables.
+The local database is `billit_finance.db`, with `expenses`, `employees` and `payroll_payments` tables. Google Drive backups contain only those three tables. When restoring an older full-Billit JSON backup, expense and employee records are imported; legacy salary entries remain in the expense ledger and are not automatically converted into structured payroll-payment rows.
 
 ## Google Drive setup
 
