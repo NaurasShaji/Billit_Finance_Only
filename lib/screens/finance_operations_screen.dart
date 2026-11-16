@@ -17,10 +17,10 @@ class _IncomeTabState extends State<_IncomeTab>{
   @override void initState(){super.initState();load();}
   Future<void> load() async {final n=DateTime.now(),s=DateTime(n.year,n.month,1),e=DateTime(n.year,n.month+1,1);final r=await DatabaseService.instance.income(start:s,end:e);final p=await DatabaseService.instance.incomeCollected(start:s,end:e);if(mounted)setState(()=>{rows=r,total=r.fold(0,(v,x)=>v+x.amount),received=p,busy=false});}
   Future<void> add() async {
-    final amount=TextEditingController(),cost=TextEditingController(text:'0'),paid=TextEditingController(text:'0'),desc=TextEditingController();String method='cash';
+    final amount=TextEditingController(),cost=TextEditingController(),paid=TextEditingController(text:'0'),desc=TextEditingController();String method='cash';
     final ok=await showDialog<bool>(context:context,builder:(c)=>StatefulBuilder(builder:(c,u)=>AlertDialog(title:const Text('Add sale / income'),content:Column(mainAxisSize:MainAxisSize.min,children:[
       TextField(controller:amount,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Sale total (₹)')),
-      TextField(controller:cost,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cost of goods sold (₹)',helperText:'Optional; required for meaningful profit')),
+      TextField(controller:cost,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cost of goods sold (₹)',helperText:'Enter 0 if this sale has no stock cost')),
       TextField(controller:paid,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Collected now (₹)',helperText:'Remaining amount stays outstanding')),
       DropdownButtonFormField<String>(value:method,items:const ['cash','upi','card','bank','other'].map((x)=>DropdownMenuItem(value:x,child:Text(x.toUpperCase()))).toList(),onChanged:(v)=>u(()=>method=v??'cash')),
       TextField(controller:desc,decoration:const InputDecoration(labelText:'Description / bill reference')),
@@ -83,6 +83,7 @@ class _CashTabState extends State<_CashTab>{
       _metric('Expected cash in drawer',session!.openingBalance+(net['cash']??0)),
       if(session!.status=='open')Wrap(spacing:8,children:[FilledButton.icon(onPressed:movement,icon:const Icon(Icons.add),label:const Text('Add movement')),OutlinedButton.icon(onPressed:close,icon:const Icon(Icons.lock),label:const Text('Close day'))]),
       if(session!.status=='closed')_metric('Counted closing cash',session!.closingBalance??0),
+      if(session!.status=='closed')_metric('Cash variance', (session!.closingBalance??0)-(session!.openingBalance+(net['cash']??0))),
       ...rows.map((r)=>ListTile(title:Text(r.note.isEmpty?r.method.toUpperCase():r.note),subtitle:Text(r.direction.toUpperCase()+' • '+r.method.toUpperCase()),trailing:Text(FinanceCalculator.money(r.amount))))
     ]
   ]));
