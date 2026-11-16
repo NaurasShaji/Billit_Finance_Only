@@ -43,6 +43,19 @@ class _CreditTabState extends State<_CreditTab>{
   @override void initState(){super.initState();load();}
   Future<void> load()async{final x=await DatabaseService.instance.creditBalances();if(mounted)setState(()=>{rows=x,busy=false});}
   Future<void> addParty()async{final n=TextEditingController(),p=TextEditingController();String type='customer';final ok=await showDialog<bool>(context:context,builder:(c)=>StatefulBuilder(builder:(c,u)=>AlertDialog(title:const Text('Add customer / supplier'),content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:n,decoration:const InputDecoration(labelText:'Name')),TextField(controller:p,decoration:const InputDecoration(labelText:'Phone')),DropdownButtonFormField<String>(value:type,items:const [DropdownMenuItem(value:'customer',child:Text('Customer')),DropdownMenuItem(value:'supplier',child:Text('Supplier'))],onChanged:(v)=>u(()=>type=v??'customer'))]),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Save'))])));if(ok==true&&n.text.trim().isNotEmpty){await DatabaseService.instance.addCreditParty(CreditParty(name:n.text.trim(),phone:p.text.trim(),type:type));await load();}n.dispose();p.dispose();}
+  Future<void> showParty(CreditParty party) async {
+    final history=await DatabaseService.instance.creditTransactions(party.id!);
+    if(!mounted)return;
+    await showDialog<void>(context:context,builder:(ctx)=>AlertDialog(
+      title:Text(party.name+' • '+party.type),
+      content:SizedBox(width:420,child:history.isEmpty?const Text('No ledger entries yet.'):SizedBox(height:300,child:ListView(children:history.map((t)=>ListTile(
+        title:Text(t.type.replaceAll('_',' ')),
+        subtitle:Text(DateFormat('dd MMM yyyy').format(t.date)+(t.dueDate==null?'':' • Due '+DateFormat('dd MMM yyyy').format(t.dueDate!))+(t.note.isEmpty?'':' • '+t.note)),
+        trailing:Text(FinanceCalculator.money(t.amount)),
+      )).toList()))),
+      actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Close')),FilledButton(onPressed:(){Navigator.pop(ctx);addEntry(party);},child:const Text('Add entry'))],
+    ));
+  }
   Future<void> addEntry(CreditParty party) async {
     final a=TextEditingController(),note=TextEditingController();
     final isCustomer=party.type=='customer';
@@ -65,7 +78,7 @@ class _CreditTabState extends State<_CreditTab>{
     }
     a.dispose();note.dispose();
   }
-  @override Widget build(BuildContext context)=>busy?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[FilledButton.icon(onPressed:addParty,icon:const Icon(Icons.person_add),label:const Text('Add party')),if(rows.isEmpty)const Padding(padding:EdgeInsets.all(20),child:Text('No credit parties yet.')), ...rows.map((r){final p=CreditParty.fromMap(r);final b=(r['balance'] as num).toDouble();return Card(child:ListTile(title:Text(p.name),subtitle:Text(p.type=='customer'?'Customer receivable':'Supplier payable'),trailing:Text(FinanceCalculator.money(b.abs()),style:const TextStyle(fontWeight:FontWeight.bold)),onTap:()=>addEntry(p)));})]));
+  @override Widget build(BuildContext context)=>busy?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[FilledButton.icon(onPressed:addParty,icon:const Icon(Icons.person_add),label:const Text('Add party')),if(rows.isEmpty)const Padding(padding:EdgeInsets.all(20),child:Text('No credit parties yet.')), ...rows.map((r){final p=CreditParty.fromMap(r);final b=(r['balance'] as num).toDouble();return Card(child:ListTile(title:Text(p.name),subtitle:Text(p.type=='customer'?'Customer receivable':'Supplier payable'),trailing:Text(FinanceCalculator.money(b.abs()),style:const TextStyle(fontWeight:FontWeight.bold)),onTap:()=>showParty(p)));})]));
 }
 class _CashTab extends StatefulWidget { const _CashTab(); @override State<_CashTab> createState()=>_CashTabState(); }
 class _CashTabState extends State<_CashTab>{
