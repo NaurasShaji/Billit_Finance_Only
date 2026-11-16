@@ -42,7 +42,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
   double get expenseTotal => expenses.fold(0, (s, e) => s + e.amount);
   double get payrollTotal => payroll.fold(0, (s, e) => s + e.amount);
   double get incomeTotal => income.fold(0, (s, e) => s + e.amount);
-  double get netProfit => incomeTotal - expenseTotal - payrollTotal;
+  double get costOfGoodsSold => income.fold(0, (s, e) => s + e.costAmount);
+  double get grossProfit => incomeTotal - costOfGoodsSold;
+  double get netProfit => grossProfit - expenseTotal - payrollTotal;
   String get label => period == 'day'
       ? DateFormat('dd MMM yyyy').format(anchor)
       : period == 'year' ? DateFormat('yyyy').format(anchor) : DateFormat('MMMM yyyy').format(anchor);
@@ -62,13 +64,15 @@ class _ReportsScreenState extends State<ReportsScreen> {
       pw.Text('Billit Finance Report', style: pw.TextStyle(fontSize: 22, fontWeight: pw.FontWeight.bold)),
       pw.Text(label), pw.SizedBox(height: 18),
       pw.Text('Income / sales: INR ${incomeTotal.toStringAsFixed(2)}'),
+      pw.Text('Cost of goods sold: INR ${costOfGoodsSold.toStringAsFixed(2)}'),
+      pw.Text('Gross profit: INR ${grossProfit.toStringAsFixed(2)}'),
       pw.Text('Expenses: INR ${expenseTotal.toStringAsFixed(2)}'),
       pw.Text('Payroll: INR ${payrollTotal.toStringAsFixed(2)}'),
       pw.Text('Total outflow: INR ${(expenseTotal + payrollTotal).toStringAsFixed(2)}'),
       pw.Text('Net operating result: INR ${netProfit.toStringAsFixed(2)}'),
       pw.SizedBox(height: 18),
       pw.Text('Income details', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
-      pw.TableHelper.fromTextArray(headers: ['Date','Description','Amount'], data: income.map((e) => [DateFormat('dd MMM yyyy').format(e.date), e.description, e.amount.toStringAsFixed(2)]).toList()),
+      pw.TableHelper.fromTextArray(headers: ['Date','Description','Sales','COGS'], data: income.map((e) => [DateFormat('dd MMM yyyy').format(e.date), e.description, e.amount.toStringAsFixed(2), e.costAmount.toStringAsFixed(2)]).toList()),
       pw.SizedBox(height: 18),
       pw.Text('Expense details', style: pw.TextStyle(fontSize: 15, fontWeight: pw.FontWeight.bold)),
       pw.TableHelper.fromTextArray(headers: ['Date','Category','Description','Amount'], data: expenses.map((e) => [DateFormat('dd MMM yyyy').format(e.date), e.category, e.description, e.amount.toStringAsFixed(2)]).toList()),
@@ -91,7 +95,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Uint8List _csv() {
     final rows = <String>[
       ['Record type', 'Date', 'Category / type', 'Description / note', 'Amount'].map(_csvCell).join(','),
-      ...income.map((e) => ['Income', DateFormat('yyyy-MM-dd').format(e.date), e.source, e.description, e.amount.toStringAsFixed(2)].map(_csvCell).join(',')),
+      ...income.map((e) => ['Income', DateFormat('yyyy-MM-dd').format(e.date), e.source, e.description + ' | COGS ' + e.costAmount.toStringAsFixed(2), e.amount.toStringAsFixed(2)].map(_csvCell).join(',')),
       ...expenses.map((e) => ['Expense', DateFormat('yyyy-MM-dd').format(e.date), e.category, e.description, e.amount.toStringAsFixed(2)].map(_csvCell).join(',')),
       ...payroll.map((e) => ['Payroll', DateFormat('yyyy-MM-dd').format(e.date), e.type, e.note, e.amount.toStringAsFixed(2)].map(_csvCell).join(',')),
       ['', '', '', 'Total income', incomeTotal.toStringAsFixed(2)].map(_csvCell).join(','),
@@ -136,6 +140,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ])),
       Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _line('Income / sales', incomeTotal),
+        _line('Cost of goods sold', costOfGoodsSold), _line('Gross profit', grossProfit),
         _line('Expenses', expenseTotal), _line('Payroll', payrollTotal), const Divider(), _line('Total outflow', expenseTotal + payrollTotal), _line('Net operating result', netProfit, bold: true),
       ]))),
       Card(child: Padding(padding: const EdgeInsets.all(16), child: Wrap(spacing: 10, runSpacing: 10, children: [
@@ -144,7 +149,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
         OutlinedButton.icon(onPressed: _downloadCsv, icon: const Icon(Icons.table_view), label: const Text('Download CSV')),
         OutlinedButton.icon(onPressed: _shareCsv, icon: const Icon(Icons.share_outlined), label: const Text('Share CSV')),
       ]))),
-      const Text('Income, expense and payroll details are included. Net operating result is income minus expenses and payroll; it is not a tax or statutory profit calculation.'),
+      const Text('Income, expense and payroll details are included. Net operating result is sales less recorded COGS, expenses and payroll; it is not a tax or statutory profit calculation.'),
     ]),
   );
   Widget _line(String title, double value, {bool bold = false}) => Padding(
