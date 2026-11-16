@@ -29,7 +29,7 @@ class DriveBackupService {
   DriveBackupService._();
   static final instance = DriveBackupService._();
   final GoogleSignIn _signIn = GoogleSignIn(scopes: [drive.DriveApi.driveFileScope]);
-  static const _folderName = 'Billit Finance Backups';
+  static const _folderName = 'Billit';
 
   Future<GoogleSignInAccount?> signIn() async {
     final existing = await _signIn.signInSilently();
