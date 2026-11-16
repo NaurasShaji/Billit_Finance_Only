@@ -34,15 +34,16 @@ class PayrollPayment {
 }
 
 class IncomeRecord {
-  const IncomeRecord({this.id, required this.date, required this.amount, required this.description, this.source = 'manual', this.externalId});
+  const IncomeRecord({this.id, required this.date, required this.amount, required this.description, this.costAmount = 0, this.source = 'manual', this.externalId});
   final int? id;
   final DateTime date;
   final double amount;
   final String description;
+  final double costAmount;
   final String source;
   final String? externalId;
-  Map<String, Object?> toMap() => {'id': id, 'date': date.toIso8601String(), 'amount': amount, 'description': description, 'source': source, 'external_id': externalId};
-  factory IncomeRecord.fromMap(Map<String, Object?> row) => IncomeRecord(id: row['id'] as int, date: DateTime.parse(row['date'] as String), amount: (row['amount'] as num).toDouble(), description: (row['description'] ?? '') as String, source: (row['source'] ?? 'manual') as String, externalId: row['external_id'] as String?);
+  Map<String, Object?> toMap() => {'id': id, 'date': date.toIso8601String(), 'amount': amount, 'description': description, 'cost_amount': costAmount, 'source': source, 'external_id': externalId};
+  factory IncomeRecord.fromMap(Map<String, Object?> row) => IncomeRecord(id: row['id'] as int, date: DateTime.parse(row['date'] as String), amount: (row['amount'] as num).toDouble(), description: (row['description'] ?? '') as String, costAmount: (row['cost_amount'] as num?)?.toDouble() ?? 0, source: (row['source'] ?? 'manual') as String, externalId: row['external_id'] as String?);
 }
 class IncomePayment {
   const IncomePayment({this.id, required this.incomeId, required this.date, required this.method, required this.amount});
