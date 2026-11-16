@@ -16,11 +16,16 @@ class ReportsScreen extends StatefulWidget {
 }
 class _ReportsScreenState extends State<ReportsScreen> {
   DateTime anchor = DateTime.now();
+  String period = 'month';
   bool loading = false;
   List<ExpenseRecord> expenses = [];
   List<PayrollPayment> payroll = [];
-  DateTime get start => DateTime(anchor.year, anchor.month, 1);
-  DateTime get end => DateTime(anchor.year, anchor.month + 1, 1);
+  DateTime get start => period == 'day'
+      ? DateTime(anchor.year, anchor.month, anchor.day)
+      : period == 'year' ? DateTime(anchor.year, 1, 1) : DateTime(anchor.year, anchor.month, 1);
+  DateTime get end => period == 'day'
+      ? start.add(const Duration(days: 1))
+      : period == 'year' ? DateTime(anchor.year + 1, 1, 1) : DateTime(anchor.year, anchor.month + 1, 1);
   Future<void> load() async {
     setState(() => loading = true);
     final values = await Future.wait([
@@ -34,7 +39,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
   void initState() { super.initState(); load(); }
   double get expenseTotal => expenses.fold(0, (s, e) => s + e.amount);
   double get payrollTotal => payroll.fold(0, (s, e) => s + e.amount);
-  String get label => DateFormat('MMMM yyyy').format(anchor);
+  String get label => period == 'day'
+      ? DateFormat('dd MMM yyyy').format(anchor)
+      : period == 'year' ? DateFormat('yyyy').format(anchor) : DateFormat('MMMM yyyy').format(anchor);
+  void shiftPeriod(int direction) {
+    setState(() {
+      if (period == 'day') anchor = anchor.add(Duration(days: direction));
+      else if (period == 'year') anchor = DateTime(anchor.year + direction, anchor.month, anchor.day);
+      else anchor = DateTime(anchor.year, anchor.month + direction, anchor.day);
+    });
+    load();
+  }
   String money(double v) => NumberFormat.currency(locale: 'en_IN', symbol: '₹').format(v);
 
   Future<Uint8List> _pdf() async {
@@ -92,10 +107,20 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Finance Reports')),
     body: loading ? const Center(child: CircularProgressIndicator()) : ListView(padding: const EdgeInsets.all(16), children: [
+      SegmentedButton<String>(
+        segments: const [
+          ButtonSegment(value: 'day', label: Text('Daily')),
+          ButtonSegment(value: 'month', label: Text('Monthly')),
+          ButtonSegment(value: 'year', label: Text('Yearly')),
+        ],
+        selected: {period},
+        onSelectionChanged: (value) { setState(() => period = value.first); load(); },
+      ),
+      const SizedBox(height: 10),
       Card(child: Row(children: [
-        IconButton(onPressed: () { anchor = DateTime(anchor.year, anchor.month - 1); load(); }, icon: const Icon(Icons.chevron_left)),
+        IconButton(onPressed: () => shiftPeriod(-1), icon: const Icon(Icons.chevron_left)),
         Expanded(child: Text(label, textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.bold))),
-        IconButton(onPressed: () { anchor = DateTime(anchor.year, anchor.month + 1); load(); }, icon: const Icon(Icons.chevron_right)),
+        IconButton(onPressed: () => shiftPeriod(1), icon: const Icon(Icons.chevron_right)),
       ])),
       Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         _line('Expenses', expenseTotal), _line('Payroll', payrollTotal), const Divider(), _line('Total outflow', expenseTotal + payrollTotal, bold: true),
