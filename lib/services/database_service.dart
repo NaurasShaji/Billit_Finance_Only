@@ -4,7 +4,7 @@ import '../models/finance_models.dart';
 
 class DatabaseService {
   DatabaseService._();
-  static final DatabaseService instance = DatabaseService._();
+  static final instance = DatabaseService._();
   Database? _db;
 
   Future<Database> get database async {
