@@ -4,12 +4,12 @@ A standalone Flutter application containing the existing Billit finance-monitori
 
 ## Included
 
-- Expense records: add, edit, search, filter and delete.
+- Expense records: add, edit, search, filter, delete and create custom categories.
 - Employee records: daily-wage and monthly-salary employees.
 - Payroll payment records.
 - Monthly finance overview for expenses and payroll.
-- Monthly PDF report download and sharing.
-- Google Drive backup and restore for this app's expenses, employees and payroll data.
+- Daily, monthly and yearly PDF/CSV report downloads and sharing.
+- Google Drive backup and restore for this app's expenses, employees and payroll data, including import of compatible legacy Billit backups.
 - One local administrator login. The first launch asks the administrator to create a password.
 
 No separate income register, bank reconciliation, COGS/stock-cost module, sales ledger or staff roles are included.
