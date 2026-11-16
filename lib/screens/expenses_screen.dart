@@ -152,7 +152,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   const SizedBox(height: 8),
                   DropdownButtonFormField<String>(
                     value: category,
-                    items: ['All', ...categories].map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
+                    items: ['All', ...allCategories].map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(),
                     onChanged: (value) => setState(() => category = value ?? 'All'),
                   ),
                   Card(child: Padding(
