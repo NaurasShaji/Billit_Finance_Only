@@ -15,6 +15,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   bool loading = true;
   List<ExpenseRecord> expenses = [];
   List<PayrollPayment> payroll = [];
+  List<IncomeRecord> income = [];
   List<EmployeeRecord> employees = [];
   DateTime get start => DateTime(anchor.year, anchor.month, 1);
   DateTime get end => DateTime(anchor.year, anchor.month + 1, 1);
@@ -27,17 +28,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
       DatabaseService.instance.expenses(start: start, end: end),
       DatabaseService.instance.payroll(start: start, end: end),
       DatabaseService.instance.employees(),
+      DatabaseService.instance.income(start: start, end: end),
     ]);
     if (!mounted) return;
     setState(() {
       expenses = values[0] as List<ExpenseRecord>;
       payroll = values[1] as List<PayrollPayment>;
       employees = values[2] as List<EmployeeRecord>;
+      income = values[3] as List<IncomeRecord>;
       loading = false;
     });
   }
   double get expenseTotal => expenses.fold(0, (sum, e) => sum + e.amount);
   double get payrollTotal => payroll.fold(0, (sum, e) => sum + e.amount);
+  double get incomeTotal => income.fold(0, (sum, e) => sum + e.amount);
+  double get netProfit => incomeTotal - expenseTotal - payrollTotal;
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const BrandHeader(), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh))]),
@@ -45,24 +50,29 @@ class _DashboardScreenState extends State<DashboardScreen> {
       onRefresh: load,
       child: ListView(padding: const EdgeInsets.all(16), children: [
         Text('Finance overview', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-        const Text('Expense and payroll monitoring'),
+        const Text('Income, expenses and payroll monitoring'),
         Card(child: Row(children: [
           IconButton(onPressed: () { setState(() => anchor = DateTime(anchor.year, anchor.month - 1, 1)); load(); }, icon: const Icon(Icons.chevron_left)),
           Expanded(child: Text(DateFormat('MMMM yyyy').format(anchor), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700))),
           IconButton(onPressed: () { setState(() => anchor = DateTime(anchor.year, anchor.month + 1, 1)); load(); }, icon: const Icon(Icons.chevron_right)),
         ])),
         const SizedBox(height: 12),
+        _metric('Sales / income', incomeTotal, Icons.trending_up, Colors.green),
         _metric('Total expenses', expenseTotal, Icons.receipt_long, Colors.deepOrange),
         _metric('Payroll paid', payrollTotal, Icons.groups, Colors.indigo),
         _metric('Total outflow', expenseTotal + payrollTotal, Icons.account_balance_wallet, const Color(0xFF087E70)),
+        _metric('Net operating result', netProfit, Icons.account_balance, netProfit >= 0 ? Colors.green : Colors.red),
         Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           const Text('Monthly summary', style: TextStyle(fontWeight: FontWeight.w700)),
           const SizedBox(height: 12),
+          _line('Income entries', '${income.length}'),
           _line('Expense entries', '${expenses.length}'),
           _line('Payroll payments', '${payroll.length}'),
           _line('Active employees', '${employees.length}'),
           const Divider(),
+          _line('Total income', FinanceCalculator.money(incomeTotal)),
           _line('Total expenses', FinanceCalculator.money(expenseTotal)),
+          _line('Net operating result', FinanceCalculator.money(netProfit)),
           _line('Total payroll', FinanceCalculator.money(payrollTotal)),
         ]))),
       ]),
