@@ -45,8 +45,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   void shiftPeriod(int direction) {
     setState(() {
       if (period == 'day') anchor = anchor.add(Duration(days: direction));
-      else if (period == 'year') anchor = DateTime(anchor.year + direction, anchor.month, anchor.day);
-      else anchor = DateTime(anchor.year, anchor.month + direction, anchor.day);
+      else if (period == 'year') anchor = DateTime(anchor.year + direction, anchor.month, 1);
+      else anchor = DateTime(anchor.year, anchor.month + direction, 1);
     });
     load();
   }
@@ -73,7 +73,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
     final bytes = await _pdf();
     final path = await FilePicker.platform.saveFile(
       dialogTitle: 'Save finance report',
-      fileName: 'billit_finance_${anchor.year}_${anchor.month.toString().padLeft(2, '0')}.pdf',
+      fileName: 'billit_finance_${label.replaceAll(' ', '_')}.pdf',
       bytes: bytes,
     );
     if (mounted && path != null) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report saved.')));
@@ -91,7 +91,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Future<void> _downloadCsv() async {
     final path = await FilePicker.platform.saveFile(
       dialogTitle: 'Save finance report CSV',
-      fileName: 'billit_finance_${anchor.year}_${anchor.month.toString().padLeft(2, '0')}.csv',
+      fileName: 'billit_finance_${label.replaceAll(' ', '_')}.csv',
       bytes: _csv(),
     );
     if (mounted && path != null) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV report saved.')));
