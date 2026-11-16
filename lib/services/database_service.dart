@@ -11,7 +11,7 @@ class DatabaseService {
     if (_db != null) return _db!;
     _db = await openDatabase(
       p.join(await getDatabasesPath(), 'billit_finance.db'),
-      version: 1,
+      version: 2,
       onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, version) async {
         await db.execute("""CREATE TABLE expenses (
@@ -26,7 +26,9 @@ class DatabaseService {
           name TEXT NOT NULL,
           type TEXT NOT NULL CHECK(type IN ('daily','monthly')),
           wage REAL NOT NULL CHECK(wage > 0),
-          active INTEGER NOT NULL DEFAULT 1
+          active INTEGER NOT NULL DEFAULT 1,
+          attendance INTEGER NOT NULL DEFAULT 0,
+          salary_paid INTEGER NOT NULL DEFAULT 0
         )""");
         await db.execute("""CREATE TABLE payroll_payments (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,6 +41,12 @@ class DatabaseService {
         )""");
         await db.execute('CREATE INDEX idx_expenses_date ON expenses(date)');
         await db.execute('CREATE INDEX idx_payroll_date ON payroll_payments(date)');
+      },
+      onUpgrade: (db, oldVersion, newVersion) async {
+        if (oldVersion < 2) {
+          await db.execute('ALTER TABLE employees ADD COLUMN attendance INTEGER NOT NULL DEFAULT 0');
+          await db.execute('ALTER TABLE employees ADD COLUMN salary_paid INTEGER NOT NULL DEFAULT 0');
+        }
       },
     );
     return _db!;
@@ -61,6 +69,10 @@ class DatabaseService {
   }
   Future<int> addEmployee(EmployeeRecord e) async =>
       (await database).insert('employees', e.toMap()..remove('id'));
+  Future<int> updateEmployee(EmployeeRecord e) async =>
+      (await database).update('employees', e.toMap()..remove('id'), where: 'id = ?', whereArgs: [e.id]);
+  Future<int> archiveEmployee(int id) async =>
+      (await database).update('employees', {'active': 0}, where: 'id = ?', whereArgs: [id]);
   Future<List<EmployeeRecord>> employees() async =>
       (await (await database).query('employees', where: 'active = 1', orderBy: 'name'))
           .map(EmployeeRecord.fromMap).toList();
