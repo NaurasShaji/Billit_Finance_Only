@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:file_picker/file_picker.dart';
@@ -61,6 +62,27 @@ class _ReportsScreenState extends State<ReportsScreen> {
       bytes: bytes,
     );
     if (mounted && path != null) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Report saved.')));
+  }
+  String _csvCell(Object? value) => '"${(value ?? '').toString().replaceAll('"', '""')}"';
+  Uint8List _csv() {
+    final rows = <String>[
+      ['Record type', 'Date', 'Category / type', 'Description / note', 'Amount'].map(_csvCell).join(','),
+      ...expenses.map((e) => ['Expense', DateFormat('yyyy-MM-dd').format(e.date), e.category, e.description, e.amount.toStringAsFixed(2)].map(_csvCell).join(',')),
+      ...payroll.map((e) => ['Payroll', DateFormat('yyyy-MM-dd').format(e.date), e.type, e.note, e.amount.toStringAsFixed(2)].map(_csvCell).join(',')),
+      ['', '', '', 'Total outflow', (expenseTotal + payrollTotal).toStringAsFixed(2)].map(_csvCell).join(','),
+    ];
+    return Uint8List.fromList(utf8.encode('\\uFEFF${rows.join('\\r\\n')}'));
+  }
+  Future<void> _downloadCsv() async {
+    final path = await FilePicker.platform.saveFile(
+      dialogTitle: 'Save finance report CSV',
+      fileName: 'billit_finance_${anchor.year}_${anchor.month.toString().padLeft(2, '0')}.csv',
+      bytes: _csv(),
+    );
+    if (mounted && path != null) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('CSV report saved.')));
+  }
+  Future<void> _shareCsv() async {
+    await Share.shareXFiles([XFile.fromData(_csv(), mimeType: 'text/csv', name: 'billit_finance_report.csv')], subject: 'Billit Finance CSV - $label');
   }
   Future<void> _share() async {
     final bytes = await _pdf();
