@@ -1,0 +1,12 @@
+{
+  "name": "Billit Finance",
+  "short_name": "Billit Finance",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f5f7f8",
+  "theme_color": "#0f9f8f",
+  "description": "Standalone Billit finance monitoring application.",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false,
+  "icons": []
+}
