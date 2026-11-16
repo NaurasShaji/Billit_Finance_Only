@@ -42,7 +42,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double get expenseTotal => expenses.fold(0, (sum, e) => sum + e.amount);
   double get payrollTotal => payroll.fold(0, (sum, e) => sum + e.amount);
   double get incomeTotal => income.fold(0, (sum, e) => sum + e.amount);
-  double get netProfit => incomeTotal - expenseTotal - payrollTotal;
+  double get costOfGoodsSold => income.fold(0, (sum, e) => sum + e.costAmount);
+  double get grossProfit => incomeTotal - costOfGoodsSold;
+  double get netProfit => grossProfit - expenseTotal - payrollTotal;
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const BrandHeader(), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh))]),
@@ -58,6 +60,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ])),
         const SizedBox(height: 12),
         _metric('Sales / income', incomeTotal, Icons.trending_up, Colors.green),
+        _metric('Cost of goods sold', costOfGoodsSold, Icons.inventory_2_outlined, Colors.brown),
+        _metric('Gross profit', grossProfit, Icons.show_chart, grossProfit >= 0 ? Colors.green : Colors.red),
         _metric('Total expenses', expenseTotal, Icons.receipt_long, Colors.deepOrange),
         _metric('Payroll paid', payrollTotal, Icons.groups, Colors.indigo),
         _metric('Total outflow', expenseTotal + payrollTotal, Icons.account_balance_wallet, const Color(0xFF087E70)),
@@ -71,6 +75,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
           _line('Active employees', '${employees.length}'),
           const Divider(),
           _line('Total income', FinanceCalculator.money(incomeTotal)),
+          _line('Cost of goods sold', FinanceCalculator.money(costOfGoodsSold)),
+          _line('Gross profit', FinanceCalculator.money(grossProfit)),
           _line('Total expenses', FinanceCalculator.money(expenseTotal)),
           _line('Net operating result', FinanceCalculator.money(netProfit)),
           _line('Total payroll', FinanceCalculator.money(payrollTotal)),
