@@ -4,181 +4,80 @@ import '../models/finance_models.dart';
 import '../services/database_service.dart';
 import '../services/finance_calculator.dart';
 import '../widgets/brand_header.dart';
-import '../widgets/finance_ui.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
-
 class _DashboardScreenState extends State<DashboardScreen> {
   DateTime anchor = DateTime.now();
   bool loading = true;
-  List<IncomeEntry> income = [];
   List<ExpenseRecord> expenses = [];
   List<PayrollPayment> payroll = [];
-  List<StockCost> costs = [];
+  List<EmployeeRecord> employees = [];
+  DateTime get start => DateTime(anchor.year, anchor.month, 1);
+  DateTime get end => DateTime(anchor.year, anchor.month + 1, 1);
 
   @override
   void initState() { super.initState(); load(); }
-
   Future<void> load() async {
-    if (mounted) setState(() => loading = true);
-    final start = DateTime(anchor.year, anchor.month, 1);
-    final end = DateTime(anchor.year, anchor.month + 1, 1);
-    final results = await Future.wait([
-      DatabaseService.instance.income(start: start, end: end),
+    setState(() => loading = true);
+    final values = await Future.wait([
       DatabaseService.instance.expenses(start: start, end: end),
       DatabaseService.instance.payroll(start: start, end: end),
-      DatabaseService.instance.stockCosts(),
+      DatabaseService.instance.employees(),
     ]);
     if (!mounted) return;
     setState(() {
-      income = results[0] as List<IncomeEntry>;
-      expenses = results[1] as List<ExpenseRecord>;
-      payroll = results[2] as List<PayrollPayment>;
-      costs = (results[3] as List<StockCost>)
-          .where((entry) => !entry.date.isBefore(start) && entry.date.isBefore(end))
-          .toList();
+      expenses = values[0] as List<ExpenseRecord>;
+      payroll = values[1] as List<PayrollPayment>;
+      employees = values[2] as List<EmployeeRecord>;
       loading = false;
     });
   }
-
+  double get expenseTotal => expenses.fold(0, (sum, e) => sum + e.amount);
+  double get payrollTotal => payroll.fold(0, (sum, e) => sum + e.amount);
   @override
-  Widget build(BuildContext context) {
-    final summary = FinanceCalculator.summarize(
-      income: income,
-      expenses: expenses,
-      payroll: payroll,
-      stockCosts: costs,
-    );
-    return Scaffold(
-      appBar: AppBar(
-        title: const BrandHeader(),
-        actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh))],
-      ),
-      body: loading
-          ? const Center(child: CircularProgressIndicator())
-          : RefreshIndicator(
-              onRefresh: load,
-              child: ListView(
-                padding: const EdgeInsets.all(16),
-                children: [
-                  Text('Finance overview', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
-                  const Text('Business performance and cost monitoring', style: TextStyle(color: Colors.blueGrey)),
-                  Card(child: Row(children: [
-                    IconButton(
-                      onPressed: () { setState(() => anchor = DateTime(anchor.year, anchor.month - 1, 1)); load(); },
-                      icon: const Icon(Icons.chevron_left),
-                    ),
-                    Expanded(child: Text(DateFormat('MMMM yyyy').format(anchor), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700))),
-                    IconButton(
-                      onPressed: () { setState(() => anchor = DateTime(anchor.year, anchor.month + 1, 1)); load(); },
-                      icon: const Icon(Icons.chevron_right),
-                    ),
-                  ])),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: summary.operatingResult >= 0 ? const Color(0xFF0D766D) : const Color(0xFF9A3F37),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('Net operating result', style: TextStyle(color: Colors.white70)),
-                      const SizedBox(height: 8),
-                      Text(FinanceCalculator.money(summary.operatingResult), style: const TextStyle(color: Colors.white, fontSize: 29, fontWeight: FontWeight.w800)),
-                    ]),
-                  ),
-                  const SizedBox(height: 12),
-                  GridView.count(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    crossAxisCount: 2,
-                    childAspectRatio: 1.55,
-                    crossAxisSpacing: 10,
-                    mainAxisSpacing: 10,
-                    children: [
-                      _metric('Income', summary.income, Icons.south_west, Colors.teal),
-                      _metric('Expenses', summary.expenses, Icons.receipt_long, Colors.deepOrange),
-                      _metric('Payroll', summary.payroll, Icons.groups, Colors.indigo),
-                      _metric('COGS adjustments', summary.cogs, Icons.inventory_2, Colors.blueGrey),
-                    ],
-                  ),
-                  Card(child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                      const Text('Period breakdown', style: TextStyle(fontWeight: FontWeight.w700)),
-                      FinanceUi.row('Income', summary.income),
-                      FinanceUi.row('Expenses', -summary.expenses),
-                      FinanceUi.row('Payroll', -summary.payroll),
-                      FinanceUi.row('COGS adjustments', -summary.cogs),
-                      const Divider(),
-                      FinanceUi.row('Total outflow', -summary.totalOutflow, bold: true),
-                      FinanceUi.row('Net result', summary.operatingResult, bold: true),
-                    ]),
-                  )),
-                  const Card(child: Padding(
-                    padding: EdgeInsets.all(14),
-                    child: Text('Income is entered separately and is not synced from Billit sales. COGS is based on entered stock-cost adjustments, not a perpetual-inventory valuation.'),
-                  )),
-                  FilledButton.icon(
-                    onPressed: () => _incomeDialog(context),
-                    icon: const Icon(Icons.add),
-                    label: const Text('Record income'),
-                  ),
-                ],
-              ),
-            ),
-    );
-  }
-
-  Widget _metric(String title, double value, IconData icon, Color color) => Card(
-    child: Padding(
-      padding: const EdgeInsets.all(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Icon(icon, color: color),
-          Text(FinanceCalculator.money(value), style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w800)),
-          Text(title, style: const TextStyle(color: Colors.blueGrey)),
-        ],
-      ),
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const BrandHeader(), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh))]),
+    body: loading ? const Center(child: CircularProgressIndicator()) : RefreshIndicator(
+      onRefresh: load,
+      child: ListView(padding: const EdgeInsets.all(16), children: [
+        Text('Finance overview', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)),
+        const Text('Expense and payroll monitoring'),
+        Card(child: Row(children: [
+          IconButton(onPressed: () { setState(() => anchor = DateTime(anchor.year, anchor.month - 1, 1)); load(); }, icon: const Icon(Icons.chevron_left)),
+          Expanded(child: Text(DateFormat('MMMM yyyy').format(anchor), textAlign: TextAlign.center, style: const TextStyle(fontWeight: FontWeight.w700))),
+          IconButton(onPressed: () { setState(() => anchor = DateTime(anchor.year, anchor.month + 1, 1)); load(); }, icon: const Icon(Icons.chevron_right)),
+        ])),
+        const SizedBox(height: 12),
+        _metric('Total expenses', expenseTotal, Icons.receipt_long, Colors.deepOrange),
+        _metric('Payroll paid', payrollTotal, Icons.groups, Colors.indigo),
+        _metric('Total outflow', expenseTotal + payrollTotal, Icons.account_balance_wallet, const Color(0xFF087E70)),
+        Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Monthly summary', style: TextStyle(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 12),
+          _line('Expense entries', '${expenses.length}'),
+          _line('Payroll payments', '${payroll.length}'),
+          _line('Active employees', '${employees.length}'),
+          const Divider(),
+          _line('Total expenses', FinanceCalculator.money(expenseTotal)),
+          _line('Total payroll', FinanceCalculator.money(payrollTotal)),
+        ]))),
+      ]),
     ),
   );
-
-  Future<void> _incomeDialog(BuildContext context) async {
-    final source = TextEditingController(text: 'Sales');
-    final amount = TextEditingController();
-    final note = TextEditingController();
-    final ok = await showDialog<bool>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Record income'),
-        content: Column(mainAxisSize: MainAxisSize.min, children: [
-          TextField(controller: source, decoration: const InputDecoration(labelText: 'Source')),
-          FinanceUi.amountField(amount),
-          TextField(controller: note, decoration: const InputDecoration(labelText: 'Note')),
-        ]),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save')),
-        ],
-      ),
-    );
-    final value = double.tryParse(amount.text);
-    if (ok == true && value != null && value > 0) {
-      await DatabaseService.instance.addIncome(IncomeEntry(
-        id: null,
-        date: DateTime.now(),
-        source: source.text.trim().isEmpty ? 'Income' : source.text.trim(),
-        amount: value,
-        note: note.text.trim(),
-      ));
-      await load();
-    }
-    source.dispose(); amount.dispose(); note.dispose();
-  }
+  Widget _metric(String label, double value, IconData icon, Color color) => Card(
+    child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [
+      CircleAvatar(backgroundColor: color.withValues(alpha: .12), child: Icon(icon, color: color)),
+      const SizedBox(width: 14),
+      Expanded(child: Text(label)),
+      Text(FinanceCalculator.money(value), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+    ])),
+  );
+  Widget _line(String label, String value) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 5),
+    child: Row(children: [Expanded(child: Text(label)), Text(value, style: const TextStyle(fontWeight: FontWeight.w600))]),
+  );
 }
