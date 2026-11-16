@@ -1,0 +1,43 @@
+class ExpenseRecord {
+ const ExpenseRecord({required this.id,required this.date,required this.category,required this.amount,required this.description});
+ final int? id; final DateTime date; final String category; final double amount; final String description;
+ Map<String,Object?> toMap()=>{'id':id,'date':date.toIso8601String(),'category':category,'amount':amount,'description':description};
+ factory ExpenseRecord.fromMap(Map<String,Object?> r)=>ExpenseRecord(id:r['id'] as int,date:DateTime.parse(r['date'] as String),category:r['category'] as String,amount:(r['amount'] as num).toDouble(),description:(r['description']??'') as String);
+}
+class EmployeeRecord {
+ const EmployeeRecord({required this.id,required this.name,required this.type,required this.wage,this.active=true});
+ final int? id; final String name; final String type; final double wage; final bool active;
+ Map<String,Object?> toMap()=>{'id':id,'name':name,'type':type,'wage':wage,'active':active?1:0};
+ factory EmployeeRecord.fromMap(Map<String,Object?> r)=>EmployeeRecord(id:r['id'] as int,name:r['name'] as String,type:r['type'] as String,wage:(r['wage'] as num).toDouble(),active:(r['active'] as int)==1);
+}
+class PayrollPayment {
+ const PayrollPayment({required this.id,required this.employeeId,required this.date,required this.period,required this.amount,required this.type,this.note=''});
+ final int? id; final int employeeId; final DateTime date; final String period; final double amount; final String type; final String note;
+ Map<String,Object?> toMap()=>{'id':id,'employee_id':employeeId,'date':date.toIso8601String(),'period':period,'amount':amount,'type':type,'note':note};
+ factory PayrollPayment.fromMap(Map<String,Object?> r)=>PayrollPayment(id:r['id'] as int,employeeId:r['employee_id'] as int,date:DateTime.parse(r['date'] as String),period:r['period'] as String,amount:(r['amount'] as num).toDouble(),type:r['type'] as String,note:(r['note']??'') as String);
+}
+class BankAccount {
+ const BankAccount({required this.id,required this.name,required this.bankName,required this.openingBalance});
+ final int? id; final String name; final String bankName; final double openingBalance;
+ Map<String,Object?> toMap()=>{'id':id,'name':name,'bank_name':bankName,'opening_balance':openingBalance};
+ factory BankAccount.fromMap(Map<String,Object?> r)=>BankAccount(id:r['id'] as int,name:r['name'] as String,bankName:r['bank_name'] as String,openingBalance:(r['opening_balance'] as num).toDouble());
+}
+class BankTransaction {
+ const BankTransaction({required this.id,required this.accountId,required this.date,required this.description,required this.amount,required this.direction,required this.reference,this.reconciled=false});
+ final int? id; final int accountId; final DateTime date; final String description; final double amount; final String direction; final String reference; final bool reconciled;
+ Map<String,Object?> toMap()=>{'id':id,'account_id':accountId,'date':date.toIso8601String(),'description':description,'amount':amount,'direction':direction,'reference':reference,'reconciled':reconciled?1:0};
+ factory BankTransaction.fromMap(Map<String,Object?> r)=>BankTransaction(id:r['id'] as int,accountId:r['account_id'] as int,date:DateTime.parse(r['date'] as String),description:r['description'] as String,amount:(r['amount'] as num).toDouble(),direction:r['direction'] as String,reference:(r['reference']??'') as String,reconciled:(r['reconciled'] as int)==1);
+}
+class StockCost {
+ const StockCost({required this.id,required this.date,required this.item,required this.quantity,required this.unitCost,required this.kind,this.note=''});
+ final int? id; final DateTime date; final String item; final double quantity; final double unitCost; final String kind; final String note;
+ double get totalCost=>quantity*unitCost;
+ Map<String,Object?> toMap()=>{'id':id,'date':date.toIso8601String(),'item':item,'quantity':quantity,'unit_cost':unitCost,'kind':kind,'note':note};
+ factory StockCost.fromMap(Map<String,Object?> r)=>StockCost(id:r['id'] as int,date:DateTime.parse(r['date'] as String),item:r['item'] as String,quantity:(r['quantity'] as num).toDouble(),unitCost:(r['unit_cost'] as num).toDouble(),kind:r['kind'] as String,note:(r['note']??'') as String);
+}
+class IncomeEntry {
+ const IncomeEntry({required this.id,required this.date,required this.source,required this.amount,this.note=''});
+ final int? id; final DateTime date; final String source; final double amount; final String note;
+ Map<String,Object?> toMap()=>{'id':id,'date':date.toIso8601String(),'source':source,'amount':amount,'note':note};
+ factory IncomeEntry.fromMap(Map<String,Object?> r)=>IncomeEntry(id:r['id'] as int,date:DateTime.parse(r['date'] as String),source:r['source'] as String,amount:(r['amount'] as num).toDouble(),note:(r['note']??'') as String);
+}
