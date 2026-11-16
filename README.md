@@ -1,30 +1,34 @@
 # Billit Finance
 
-A standalone Flutter application containing the existing Billit finance-monitoring scope. It uses SQLite locally and keeps the Billit brand identity.
+Standalone Flutter application for the finance-monitoring functionality extracted from Billit. The original `NaurasShaji/Billit` repository is not modified by this project.
 
-## Included
+## Current implementation
 
-- Expense records: add, edit, search, filter, delete and create custom categories.
-- Employee records: daily-wage and monthly-salary employees.
-- Payroll payment records.
-- Monthly finance overview for expenses and payroll.
-- Daily, monthly and yearly PDF/CSV report downloads and sharing.
-- Google Drive backup and restore for this app's expenses, employees and payroll data, including import of compatible legacy Billit backups.
-- One local administrator login. The first launch asks the administrator to create a password.
+- SQLite local persistence for expense records, employees and payroll payments.
+- Expense management: add, edit, search/filter, delete and custom categories.
+- Employee management for daily-wage and monthly-salary employees.
+- Payroll payment recording with duplicate-period protection and retained payment history.
+- Monthly expense/payroll overview.
+- Daily, monthly and yearly finance reports with PDF and CSV download and sharing.
+- Google Drive OAuth connection, JSON backup, backup listing and restore.
+- Single local administrator account. First launch creates the admin password; later launches require that password.
+- Billit logo and launcher icon assets/configuration.
 
-No separate income register, bank reconciliation, COGS/stock-cost module, sales ledger or staff roles are included.
+## Data and backup behavior
 
-## Storage
+The local SQLite database is `billit_finance.db` and currently contains `expenses`, `employees` and `payroll_payments`. Google Drive backups include these tables only.
 
-The local database is `billit_finance.db`, with `expenses`, `employees` and `payroll_payments` tables. Google Drive backups contain only those three tables. When restoring an older full-Billit JSON backup, expense and employee records are imported; legacy salary entries remain in the expense ledger and are not automatically converted into structured payroll-payment rows.
+The Drive restore service accepts this app's finance backup format and compatible legacy Billit JSON backups containing expense and employee arrays. Legacy salary expenses remain in the expense ledger; they are not silently converted into structured payroll payment records. Restore replaces the corresponding local finance tables, so verify the selected backup before restoring.
 
 ## Google Drive setup
 
-Google Drive backup uses Google Sign-In OAuth and the Drive `drive.file` scope. Configure the Android OAuth client for the app's application ID and signing certificate in Google Cloud Console, enable the Google Drive API, and configure the platform-specific OAuth client before testing Drive backup. The admin password and Google account authorization are separate.
+Google Drive uses Google Sign-In OAuth and the Drive `drive.file` scope. Configure the Android OAuth client for this app's application ID and signing certificate in Google Cloud Console, enable the Google Drive API, and configure any other target platform's OAuth client before testing backup/restore.
 
-## Branding
+The admin password and Google account authorization are separate. Google Drive sign-in does not create another app user.
 
-The launcher configuration points to `assets/icon/billit_icon.png`; the Billit logo asset is retained in `assets/icon/`. Android application ID is `com.example.billitfinance` so this app can be installed alongside the original Billit app.
+## Branding and application identity
+
+The original Billit assets are retained under `assets/icon/`. Launcher generation uses `assets/icon/billit_icon.png`; the in-app login uses `assets/icon/billit_logo.svg`. Android application ID is `com.example.billitfinance`, allowing this app to be installed alongside Billit.
 
 ## Run
 
@@ -35,3 +39,7 @@ flutter pub get
 dart run flutter_launcher_icons
 flutter run
 ```
+
+## Validation status
+
+Repository files have been updated through GitHub. A Flutter build, device-level Google OAuth test, Drive backup/restore round-trip, and end-to-end UI validation still need to be run in a configured Flutter environment. Do not treat Google Drive as production-ready until OAuth client configuration and restore testing are complete.
