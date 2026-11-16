@@ -13,7 +13,7 @@ class AppShell extends StatefulWidget {
 }
 class _AppShellState extends State<AppShell> {
   int index = 0;
-  late final pages = const [DashboardScreen(), ExpensesScreen(), PayrollScreen(), ReportsScreen(), BackupScreen()];
+  late final pages = [const DashboardScreen(), const ExpensesScreen(), const PayrollScreen(), const ReportsScreen(), BackupScreen(onLogout: widget.onLogout)];
   static const destinations = [
     NavigationDestination(icon: Icon(Icons.space_dashboard_outlined), selectedIcon: Icon(Icons.space_dashboard), label: 'Overview'),
     NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long), label: 'Expenses'),
