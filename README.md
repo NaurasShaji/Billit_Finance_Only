@@ -22,7 +22,7 @@ Standalone Flutter application for the finance-monitoring functionality extracte
 
 The local SQLite database is `billit_finance.db` (schema version 4). It contains `expenses`, `employees`, `payroll_payments`, `income_entries`, `income_payments`, `credit_parties`, `credit_transactions`, `cash_sessions` and `cash_transactions`. Google Drive backup version 2 includes all of these tables.
 
-The Drive restore service accepts this app's finance backup format and compatible legacy Billit JSON backups. For legacy Billit backups, it imports sales totals, sale dates, sale IDs, payment methods and total cost into the income ledger, alongside expenses and employees. Legacy salary expenses remain in the expense ledger; they are not silently converted into structured payroll payment records. Restore replaces local finance tables, so create a separate backup before restoring.
+The Drive restore service accepts this app's finance backup format and compatible legacy Billit JSON backups. For legacy Billit backups, it imports sales totals, sale dates, sale IDs, payment methods and total cost into the income ledger, alongside expenses and employees. Legacy salary expenses remain in the expense ledger; they are not silently converted into structured payroll payment records. Restore automatically uploads a safety backup of the current local finance tables to Drive before replacing them. A restore will fail rather than proceed if that safety backup cannot be created.
 
 ## Google Drive setup
 
