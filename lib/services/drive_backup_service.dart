@@ -59,13 +59,25 @@ class DriveBackupService {
     final expenses = await db.query('expenses');
     final employees = await db.query('employees');
     final payroll = await db.query('payroll_payments');
+    final income = await db.query('income_entries');
+    final incomePayments = await db.query('income_payments');
+    final creditParties = await db.query('credit_parties');
+    final creditTransactions = await db.query('credit_transactions');
+    final cashSessions = await db.query('cash_sessions');
+    final cashTransactions = await db.query('cash_transactions');
     return {
       'format': 'billit-finance-sqlite-json',
-      'version': 1,
+      'version': 2,
       'createdAt': DateTime.now().toIso8601String(),
       'expenses': expenses,
       'employees': employees,
       'payroll_payments': payroll,
+      'income_entries': income,
+      'income_payments': incomePayments,
+      'credit_parties': creditParties,
+      'credit_transactions': creditTransactions,
+      'cash_sessions': cashSessions,
+      'cash_transactions': cashTransactions,
     };
   }
 
@@ -108,13 +120,19 @@ class DriveBackupService {
     if (decoded is! Map) {
       throw const FormatException('This is not a valid Billit backup.');
     }
-    final isFinanceBackup = decoded['format'] == 'billit-finance-sqlite-json' && decoded['version'] == 1;
+    final isFinanceBackup = decoded['format'] == 'billit-finance-sqlite-json' && (decoded['version'] == 1 || decoded['version'] == 2);
     final isLegacyBillitBackup = decoded['expenses'] is List && decoded['employees'] is List;
     if (!isFinanceBackup && !isLegacyBillitBackup) {
       throw const FormatException('This backup does not contain compatible Billit finance data.');
     }
     final db = await DatabaseService.instance.database;
     await db.transaction((txn) async {
+      await txn.delete('cash_transactions');
+      await txn.delete('cash_sessions');
+      await txn.delete('credit_transactions');
+      await txn.delete('credit_parties');
+      await txn.delete('income_payments');
+      await txn.delete('income_entries');
       await txn.delete('payroll_payments');
       await txn.delete('expenses');
       await txn.delete('employees');
@@ -146,6 +164,14 @@ class DriveBackupService {
       }
       for (final raw in (decoded['payroll_payments'] as List? ?? const [])) {
         await txn.insert('payroll_payments', Map<String, Object?>.from(raw as Map));
+      }
+      if (isFinanceBackup) {
+        for (final raw in (decoded['income_entries'] as List? ?? const [])) { await txn.insert('income_entries', Map<String, Object?>.from(raw as Map)); }
+        for (final raw in (decoded['income_payments'] as List? ?? const [])) { await txn.insert('income_payments', Map<String, Object?>.from(raw as Map)); }
+        for (final raw in (decoded['credit_parties'] as List? ?? const [])) { await txn.insert('credit_parties', Map<String, Object?>.from(raw as Map)); }
+        for (final raw in (decoded['credit_transactions'] as List? ?? const [])) { await txn.insert('credit_transactions', Map<String, Object?>.from(raw as Map)); }
+        for (final raw in (decoded['cash_sessions'] as List? ?? const [])) { await txn.insert('cash_sessions', Map<String, Object?>.from(raw as Map)); }
+        for (final raw in (decoded['cash_transactions'] as List? ?? const [])) { await txn.insert('cash_transactions', Map<String, Object?>.from(raw as Map)); }
       }
     });
   }
