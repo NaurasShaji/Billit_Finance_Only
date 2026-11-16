@@ -29,14 +29,14 @@ class _PayrollScreenState extends State<PayrollScreen> {
     });
   }
 
-  Future<void> addEmployee() async {
-    final name = TextEditingController();
-    final wage = TextEditingController();
-    var type = 'daily';
+  Future<void> addEmployee([EmployeeRecord? existing]) async {
+    final name = TextEditingController(text: existing?.name ?? '');
+    final wage = TextEditingController(text: existing?.wage.toString() ?? '');
+    var type = existing?.type ?? 'daily';
     final ok = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => StatefulBuilder(builder: (dialogContext, update) => AlertDialog(
-        title: const Text('Add employee'),
+        title: Text(existing == null ? 'Add employee' : 'Edit employee'),
         content: Column(mainAxisSize: MainAxisSize.min, children: [
           TextField(controller: name, decoration: const InputDecoration(labelText: 'Employee name')),
           DropdownButtonFormField<String>(
@@ -57,12 +57,21 @@ class _PayrollScreenState extends State<PayrollScreen> {
     );
     final value = double.tryParse(wage.text);
     if (ok == true && name.text.trim().isNotEmpty && value != null && value > 0) {
-      await DatabaseService.instance.addEmployee(EmployeeRecord(
-        id: null, name: name.text.trim(), type: type, wage: value,
-      ));
+      final record = EmployeeRecord(id: existing?.id, name: name.text.trim(), type: type, wage: value, attendance: existing?.attendance ?? 0, salaryPaid: existing?.salaryPaid ?? false);
+      if (existing == null) { await DatabaseService.instance.addEmployee(record); }
+      else { await DatabaseService.instance.updateEmployee(record); }
       await load();
     }
     name.dispose(); wage.dispose();
+  }
+
+  Future<void> removeEmployee(EmployeeRecord employee) async {
+    final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(
+      title: const Text('Remove employee'),
+      content: Text('Remove ${employee.name} from the active employee list? Existing payroll history will be retained.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove'))],
+    ));
+    if (confirmed == true) { await DatabaseService.instance.archiveEmployee(employee.id!); await load(); }
   }
 
   Future<void> pay(EmployeeRecord employee) async {
@@ -147,10 +156,11 @@ class _PayrollScreenState extends State<PayrollScreen> {
                   leading: CircleAvatar(child: Text(employee.name.isEmpty ? '?' : employee.name[0].toUpperCase())),
                   title: Text(employee.name),
                   subtitle: Text('${employee.type == 'daily' ? 'Daily wage' : 'Monthly salary'} • ${FinanceCalculator.money(employee.wage)}'),
-                  trailing: FilledButton(
-                    onPressed: paid ? null : () => pay(employee),
-                    child: Text(paid ? 'Paid' : 'Pay'),
-                  ),
+                  trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                    IconButton(tooltip: 'Edit employee', onPressed: () => addEmployee(employee), icon: const Icon(Icons.edit_outlined)),
+                    IconButton(tooltip: 'Remove employee', onPressed: () => removeEmployee(employee), icon: const Icon(Icons.delete_outline)),
+                    FilledButton(onPressed: paid ? null : () => pay(employee), child: Text(paid ? 'Paid' : 'Pay')),
+                  ]),
                 ));
               }),
               const Divider(),
