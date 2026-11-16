@@ -11,7 +11,7 @@ class DatabaseService {
     if (_db != null) return _db!;
     _db = await openDatabase(
       p.join(await getDatabasesPath(), 'billit_finance.db'),
-      version: 3,
+      version: 4,
       onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, version) async {
         await _createBaseTables(db);
@@ -23,6 +23,7 @@ class DatabaseService {
           await db.execute('ALTER TABLE employees ADD COLUMN salary_paid INTEGER NOT NULL DEFAULT 0');
         }
         if (oldVersion < 3) await _createFinanceTables(db);
+        if (oldVersion < 4) await db.execute('ALTER TABLE income_entries ADD COLUMN cost_amount REAL NOT NULL DEFAULT 0 CHECK(cost_amount >= 0)');
       },
     );
     return _db!;
@@ -47,7 +48,7 @@ class DatabaseService {
   Future<void> _createFinanceTables(DatabaseExecutor db) async {
     await db.execute("""CREATE TABLE income_entries (
       id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, amount REAL NOT NULL CHECK(amount > 0),
-      description TEXT NOT NULL DEFAULT '', source TEXT NOT NULL DEFAULT 'manual',
+      description TEXT NOT NULL DEFAULT '', cost_amount REAL NOT NULL DEFAULT 0 CHECK(cost_amount >= 0), source TEXT NOT NULL DEFAULT 'manual',
       external_id TEXT UNIQUE)""");
     await db.execute("""CREATE TABLE income_payments (
       id INTEGER PRIMARY KEY AUTOINCREMENT, income_id INTEGER NOT NULL REFERENCES income_entries(id) ON DELETE CASCADE,
@@ -121,8 +122,8 @@ class DatabaseService {
   Future<List<CreditTransaction>> creditTransactions(int partyId) async => (await (await database).query('credit_transactions', where: 'party_id = ?', whereArgs: [partyId], orderBy: 'date DESC')).map(CreditTransaction.fromMap).toList();
   Future<List<Map<String, Object?>>> creditBalances() async {
     return (await (await database).rawQuery("""SELECT p.*, COALESCE(SUM(CASE
-      WHEN t.type IN ('credit_sale','payment_made') THEN t.amount
-      WHEN t.type IN ('credit_purchase','payment_received') THEN -t.amount
+      WHEN t.type IN ('credit_sale','credit_purchase','adjustment') THEN t.amount
+      WHEN t.type IN ('payment_received','payment_made') THEN -t.amount
       ELSE 0 END),0) AS balance
       FROM credit_parties p LEFT JOIN credit_transactions t ON t.party_id=p.id
       GROUP BY p.id ORDER BY p.name"""));
@@ -151,8 +152,7 @@ class DatabaseService {
     if (sessionRows.isEmpty) throw StateError('Cash session not found.');
     final opening = (sessionRows.first['opening_balance'] as num).toDouble();
     final expectedCash = opening + (balances['cash'] ?? 0);
+    if (countedCash < 0 || expectedCash.isNaN || !countedCash.isFinite) throw ArgumentError('Invalid closing cash amount.');
     await db.update('cash_sessions', {'closing_balance': countedCash, 'status': 'closed'}, where: 'id = ?', whereArgs: [sessionId]);
-    // Non-cash closing balances remain available from the transaction ledger; only physical cash is counted.
-    if (countedCash < 0 || expectedCash.isNaN) throw ArgumentError('Invalid closing cash amount.');
   }
 }
