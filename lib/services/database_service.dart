@@ -96,8 +96,7 @@ class DatabaseService {
   Future<int> addIncome(IncomeRecord entry, {List<IncomePayment> payments = const []}) async {
     final db = await database;
     return db.transaction((txn) async {
-      final id = await txn.insert('income_entries', entry.toMap()..remove('id'), conflictAlgorithm: ConflictAlgorithm.ignore);
-      if (id == 0) throw StateError('This imported sale already exists.');
+      final id = await txn.insert('income_entries', entry.toMap()..remove('id'));
       final paid = payments.fold<double>(0, (sum, p) => sum + p.amount);
       if (paid - entry.amount > 0.005) throw ArgumentError('Payments cannot exceed the sale total.');
       for (final payment in payments) {
