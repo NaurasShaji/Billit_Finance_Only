@@ -5,6 +5,7 @@ import '../services/database_service.dart';
 import '../services/finance_calculator.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ui_kit.dart';
+import 'entry_form_screens.dart';
 
 class PayrollScreen extends StatefulWidget {
   const PayrollScreen({super.key});
@@ -24,22 +25,12 @@ class _PayrollScreenState extends State<PayrollScreen> {
     setState(() { employees = employeeRows; payments = paymentRows; loading = false; });
   }
   Future<void> addEmployee([EmployeeRecord? existing]) async {
-    final name = TextEditingController(text: existing?.name ?? '');
-    final wage = TextEditingController(text: existing?.wage.toString() ?? '');
-    var type = existing?.type ?? 'daily';
-    final ok = await showDialog<bool>(context: context, builder: (dialogContext) => StatefulBuilder(builder: (dialogContext, update) => AlertDialog(
-      title: Text(existing == null ? 'Add employee' : 'Edit employee'),
-      content: Column(mainAxisSize: MainAxisSize.min, children: [TextField(controller: name, decoration: const InputDecoration(labelText: 'Employee name')), DropdownButtonFormField<String>(value: type, items: const [DropdownMenuItem(value: 'daily', child: Text('Daily wage')), DropdownMenuItem(value: 'monthly', child: Text('Monthly salary'))], onChanged: (value) => update(() => type = value ?? 'daily')), TextField(controller: wage, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Wage / salary amount (₹)'))]),
-      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: Text(existing == null ? 'Add employee' : 'Save changes'))],
-    )));
-    final value = double.tryParse(wage.text);
-    if (ok == true && name.text.trim().isNotEmpty && value != null && value > 0) {
-      final record = EmployeeRecord(id: existing?.id, name: name.text.trim(), type: type, wage: value, attendance: existing?.attendance ?? 0, salaryPaid: existing?.salaryPaid ?? false);
-      if (existing == null) await DatabaseService.instance.addEmployee(record); else await DatabaseService.instance.updateEmployee(record);
-      await load();
-    }
-    name.dispose(); wage.dispose();
+    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => EmployeeEntryPage(existing: existing),
+    ));
+    if (saved == true) await load();
   }
+
   Future<void> removeEmployee(EmployeeRecord employee) async {
     final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Remove employee'), content: Text('Remove ${employee.name} from the active employee list? Existing payroll history will be retained.'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove'))]));
     if (confirmed == true) { await DatabaseService.instance.archiveEmployee(employee.id!); await load(); }
