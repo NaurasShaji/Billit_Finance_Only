@@ -87,7 +87,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     const Text('Review income, operating costs and payroll for the selected period.', style: TextStyle(color: AppColors.muted)),
                     const SizedBox(height: 18),
                     SegmentedButton<String>(
-                      expandedInsets: EdgeInsets.zero,
                       segments: const [
                         ButtonSegment(value: 'day', label: Text('Daily'), icon: Icon(Icons.today_outlined)),
                         ButtonSegment(value: 'month', label: Text('Monthly'), icon: Icon(Icons.calendar_month_outlined)),
