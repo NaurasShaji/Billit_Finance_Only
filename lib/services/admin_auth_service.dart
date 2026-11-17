@@ -23,6 +23,16 @@ class AdminAuthService {
     return _hash(password, salt) == expected;
   }
 
+  Future<void> changePassword(String currentPassword, String newPassword) async {
+    if (!await verify(currentPassword)) {
+      throw Exception('Current password is incorrect.');
+    }
+    if (newPassword.length < 8) {
+      throw ArgumentError('New password must contain at least 8 characters.');
+    }
+    await configure(newPassword);
+  }
+
   Future<void> configure(String password) async {
     if (password.length < 8) {
       throw ArgumentError('Admin password must contain at least 8 characters.');
