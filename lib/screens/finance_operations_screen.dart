@@ -5,6 +5,7 @@ import '../services/database_service.dart';
 import '../services/finance_calculator.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ui_kit.dart';
+import 'entry_form_screens.dart';
 
 class FinanceOperationsScreen extends StatelessWidget {
   const FinanceOperationsScreen({super.key});
@@ -19,7 +20,13 @@ class _IncomeTabState extends State<_IncomeTab> {
   List<IncomeRecord> rows=[]; double total=0, received=0; bool busy=true;
   @override void initState(){super.initState();load();}
   Future<void> load() async {final n=DateTime.now(),s=DateTime(n.year,n.month,1),e=DateTime(n.year,n.month+1,1);final r=await DatabaseService.instance.income(start:s,end:e);final p=await DatabaseService.instance.incomeCollected(start:s,end:e);if(mounted)setState(()=>{rows=r,total=r.fold(0,(v,x)=>v+x.amount),received=p,busy=false});}
-  Future<void> add() async {final amount=TextEditingController(),cost=TextEditingController(),paid=TextEditingController(text:'0'),desc=TextEditingController();String method='cash';final ok=await showDialog<bool>(context:context,builder:(c)=>StatefulBuilder(builder:(c,u)=>AlertDialog(title:const Text('Add sale / income'),content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:amount,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Sale total (₹)')),TextField(controller:cost,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Cost of goods sold (₹)',helperText:'Enter 0 if this sale has no stock cost')),TextField(controller:paid,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Collected now (₹)',helperText:'Remaining amount stays outstanding')),DropdownButtonFormField<String>(value:method,items:const ['cash','upi','card','bank','other'].map((x)=>DropdownMenuItem(value:x,child:Text(x.toUpperCase()))).toList(),onChanged:(v)=>u(()=>method=v??'cash')),TextField(controller:desc,decoration:const InputDecoration(labelText:'Description / bill reference'))]),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Save'))])));final a=double.tryParse(amount.text),cogs=double.tryParse(cost.text),p=double.tryParse(paid.text);if(ok==true&&a!=null&&a>0&&cogs!=null&&cogs>=0&&p!=null&&p>=0&&p<=a){try{await DatabaseService.instance.addIncome(IncomeRecord(date:DateTime.now(),amount:a,costAmount:cogs,description:desc.text.trim()),payments:p>0?[IncomePayment(incomeId:0,date:DateTime.now(),method:method,amount:p)]:[]);await load();}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text(e.toString())));}}else if(ok==true&&mounted){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Enter valid amounts.')));}amount.dispose();cost.dispose();paid.dispose();desc.dispose();}
+  Future<void> add() async {
+    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => const IncomeEntryPage(),
+    ));
+    if (saved == true) await load();
+  }
+
   @override Widget build(BuildContext context)=>busy?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
     LayoutBuilder(builder:(context,box){final count=box.maxWidth>700?3:1;final w=(box.maxWidth-(count-1)*10)/count;return Wrap(spacing:10,runSpacing:10,children:[SizedBox(width:w,child:StatCard(title:'Sales this month',value:FinanceCalculator.money(total),icon:Icons.trending_up,color:AppColors.positive)),SizedBox(width:w,child:StatCard(title:'Collected',value:FinanceCalculator.money(received),icon:Icons.payments_outlined)),SizedBox(width:w,child:StatCard(title:'Outstanding',value:FinanceCalculator.money(total-received),icon:Icons.pending_actions,color:AppColors.warning))]);}),
     const SizedBox(height:10),FilledButton.icon(onPressed:add,icon:const Icon(Icons.add),label:const Text('Add income')),
