@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/admin_settings_action.dart';
 import 'package:intl/intl.dart';
 import '../services/drive_backup_service.dart';
 
@@ -30,7 +31,7 @@ class _BackupScreenState extends State<BackupScreen> {
   Future<void> _refresh() async { await _run(() async { backups = await DriveBackupService.instance.listBackups(); }); }
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Google Drive Backup'), actions: [IconButton(tooltip: 'Log out', onPressed: widget.onLogout, icon: const Icon(Icons.logout))]),
+    appBar: AppBar(title: const Text('Google Drive Backup'), actions: [const AdminSettingsAction(), IconButton(tooltip: 'Log out', onPressed: widget.onLogout, icon: const Icon(Icons.logout))]),
     body: ListView(padding: const EdgeInsets.all(16), children: [
       Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 900), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Card(child: Padding(padding: const EdgeInsets.all(20), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
