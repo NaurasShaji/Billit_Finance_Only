@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/admin_settings_action.dart';
 import 'package:intl/intl.dart';
 import '../models/finance_models.dart';
 import '../services/database_service.dart';
@@ -40,7 +41,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final shown = items.where((entry) => (category == 'All' || entry.category == category) && ('${entry.category} ${entry.description} ${entry.amount}'.toLowerCase().contains(query.toLowerCase()))).toList();
     final total = shown.fold<double>(0, (sum, entry) => sum + entry.amount);
     return Scaffold(
-      appBar: AppBar(title: const Text('Expenses'), actions: [IconButton(onPressed: refresh, icon: const Icon(Icons.refresh))]),
+      appBar: AppBar(title: const Text('Expenses'), actions: [IconButton(onPressed: refresh, icon: const Icon(Icons.refresh)), const AdminSettingsAction()]),
       floatingActionButton: FloatingActionButton.extended(onPressed: () => edit(), icon: const Icon(Icons.add), label: const Text('Add expense')),
       body: loading ? const Center(child: CircularProgressIndicator()) : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1040), child: Column(children: [
         Padding(padding: const EdgeInsets.all(16), child: Column(children: [
