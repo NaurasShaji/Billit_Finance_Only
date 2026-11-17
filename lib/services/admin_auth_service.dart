@@ -20,6 +20,74 @@ class AdminAuthService {
     return true;
   }
 
+  static const securityQuestions = <String, String>{
+    'school': 'What was the name of your first school?',
+    'nickname': 'What was your childhood nickname?',
+    'pet': 'What was the name of your first pet?',
+    'city': 'In which city did you grow up?',
+    'teacher': 'What was the surname of a favourite teacher?',
+    'friend': 'What was the first name of a childhood friend?',
+  };
+  static const _recoveryKey = 'admin_security_recovery_v1';
+
+  String _answerHash(String answer, String salt) =>
+      sha256.convert(utf8.encode('$salt:${answer.trim().toLowerCase()}')).toString();
+
+  Future<bool> get hasRecoveryQuestions async =>
+      (await _storage.read(key: _recoveryKey)) != null;
+
+  Future<void> saveRecoveryAnswers(
+    String currentPassword,
+    Map<String, String> answers,
+  ) async {
+    if (!await verify(currentPassword)) {
+      throw Exception('Current admin password is incorrect.');
+    }
+    if (answers.length != 3 || answers.values.any((a) => a.trim().length < 3)) {
+      throw ArgumentError('Choose three questions and provide answers of at least 3 characters.');
+    }
+    final entries = <String, Map<String, String>>{};
+    for (final entry in answers.entries) {
+      if (!securityQuestions.containsKey(entry.key)) {
+        throw ArgumentError('Invalid security question.');
+      }
+      final salt = const Uuid().v4();
+      entries[entry.key] = {'salt': salt, 'hash': _answerHash(entry.value, salt)};
+    }
+    await _storage.write(key: _recoveryKey, value: jsonEncode(entries));
+  }
+
+  Future<List<String>> getRecoveryQuestionIds() async {
+    final raw = await _storage.read(key: _recoveryKey);
+    if (raw == null) return [];
+    final decoded = jsonDecode(raw) as Map<String, dynamic>;
+    return decoded.keys.toList();
+  }
+
+  Future<bool> verifyRecoveryAnswers(Map<String, String> answers) async {
+    final raw = await _storage.read(key: _recoveryKey);
+    if (raw == null) return false;
+    final stored = jsonDecode(raw) as Map<String, dynamic>;
+    if (answers.length != stored.length) return false;
+    for (final entry in stored.entries) {
+      final answer = answers[entry.key];
+      if (answer == null) return false;
+      final record = entry.value as Map<String, dynamic>;
+      if (_answerHash(answer, record['salt'] as String) != record['hash']) return false;
+    }
+    return true;
+  }
+
+  Future<void> resetPasswordWithRecovery(
+    Map<String, String> answers,
+    String newPassword,
+  ) async {
+    if (!await verifyRecoveryAnswers(answers)) {
+      throw Exception('Security answers do not match.');
+    }
+    await configure(newPassword);
+  }
+
   String _hash(String password, String salt) =>
       sha256.convert(utf8.encode('$salt:$password')).toString();
 
