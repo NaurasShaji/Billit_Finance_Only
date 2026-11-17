@@ -6,6 +6,7 @@ import '../services/finance_calculator.dart';
 import '../widgets/finance_ui.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ui_kit.dart';
+import 'entry_form_screens.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -28,33 +29,10 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   Future<void> refresh() async { final values = await DatabaseService.instance.expenses(); if (!mounted) return; setState(() { items = values; loading = false; }); }
 
   Future<void> edit([ExpenseRecord? old]) async {
-    final categoryController = TextEditingController(text: old?.category ?? 'Miscellaneous');
-    final amountController = TextEditingController(text: old?.amount.toString() ?? '');
-    final descriptionController = TextEditingController(text: old?.description ?? '');
-    var date = old?.date ?? DateTime.now();
-    final ok = await showDialog<bool>(context: context, builder: (dialogContext) => StatefulBuilder(builder: (dialogContext, update) => AlertDialog(
-      title: Text(old == null ? 'Add expense' : 'Edit expense'),
-      content: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Row(children: [Expanded(child: DropdownButtonFormField<String>(value: allCategories.contains(categoryController.text) ? categoryController.text : 'Miscellaneous', items: allCategories.map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(), onChanged: (value) => update(() => categoryController.text = value ?? 'Miscellaneous'), decoration: const InputDecoration(labelText: 'Category'))),
-          IconButton(tooltip: 'Add category', icon: const Icon(Icons.add_circle_outline), onPressed: () async {
-            final controller = TextEditingController();
-            final result = await showDialog<String>(context: dialogContext, builder: (ctx) => AlertDialog(title: const Text('New expense category'), content: TextField(controller: controller, autofocus: true, decoration: const InputDecoration(labelText: 'Category name')), actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, controller.text.trim()), child: const Text('Add'))]));
-            final name = result?.trim() ?? ''; controller.dispose(); if (name.isNotEmpty) { customCategories.add(name); update(() => categoryController.text = name); }
-          }),
-        ]),
-        FinanceUi.amountField(amountController),
-        TextField(controller: descriptionController, decoration: const InputDecoration(labelText: 'Description')),
-        TextButton.icon(onPressed: () async { final picked = await showDatePicker(context: dialogContext, initialDate: date, firstDate: DateTime(2000), lastDate: DateTime(2100)); if (picked != null) update(() => date = picked); }, icon: const Icon(Icons.calendar_month), label: Text(DateFormat('dd MMM yyyy').format(date))),
-      ])),
-      actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Save'))],
-    )));
-    final amount = double.tryParse(amountController.text);
-    if (ok == true && amount != null && amount > 0) {
-      final record = ExpenseRecord(id: old?.id, date: date, category: categoryController.text, amount: amount, description: descriptionController.text.trim());
-      if (old == null) { await DatabaseService.instance.addExpense(record); } else { await DatabaseService.instance.updateExpense(record); }
-      await refresh();
-    }
-    categoryController.dispose(); amountController.dispose(); descriptionController.dispose();
+    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
+      builder: (_) => ExpenseEntryPage(existing: old),
+    ));
+    if (saved == true) await refresh();
   }
 
   @override
