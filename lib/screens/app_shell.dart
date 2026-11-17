@@ -12,18 +12,9 @@ class AppShell extends StatefulWidget {
   @override
   State<AppShell> createState() => _AppShellState();
 }
-
 class _AppShellState extends State<AppShell> {
   int index = 0;
-  late final pages = [
-    const DashboardScreen(),
-    const FinanceOperationsScreen(),
-    const ExpensesScreen(),
-    const PayrollScreen(),
-    const ReportsScreen(),
-    BackupScreen(onLogout: widget.onLogout),
-  ];
-
+  late final pages = [const DashboardScreen(), const FinanceOperationsScreen(), const ExpensesScreen(), const PayrollScreen(), const ReportsScreen(), BackupScreen(onLogout: widget.onLogout)];
   static const destinations = [
     NavigationDestination(icon: Icon(Icons.space_dashboard_outlined), selectedIcon: Icon(Icons.space_dashboard), label: 'Overview'),
     NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet), label: 'Accounts'),
@@ -32,7 +23,6 @@ class _AppShellState extends State<AppShell> {
     NavigationDestination(icon: Icon(Icons.assessment_outlined), selectedIcon: Icon(Icons.assessment), label: 'Reports'),
     NavigationDestination(icon: Icon(Icons.cloud_outlined), selectedIcon: Icon(Icons.cloud), label: 'Backup'),
   ];
-
   @override
   Widget build(BuildContext context) {
     final wide = MediaQuery.sizeOf(context).width >= 840;
@@ -43,11 +33,7 @@ class _AppShellState extends State<AppShell> {
             selectedIndex: index,
             onDestinationSelected: (value) => setState(() => index = value),
             labelType: NavigationRailLabelType.all,
-            destinations: destinations.map((d) => NavigationRailDestination(
-              icon: d.icon,
-              selectedIcon: d.selectedIcon,
-              label: Text(d.label),
-            )).toList(),
+            destinations: destinations.map((d) => NavigationRailDestination(icon: d.icon, selectedIcon: d.selectedIcon, label: Text(d.label))).toList(),
           ),
           const VerticalDivider(width: 1),
         ],
