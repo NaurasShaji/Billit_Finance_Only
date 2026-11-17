@@ -52,7 +52,7 @@ class _IncomeEntryPageState extends State<IncomeEntryPage> {
         const SectionHeader('Sale details'),
         TextFormField(controller: _sale, autofocus: true, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Sale total', prefixText: '₹ '), validator: (v) { final n = double.tryParse(v ?? ''); return n == null || n <= 0 ? 'Enter a sale amount greater than zero' : null; }, onChanged: (_) => setState(() {})),
         const SizedBox(height: 12),
-        TextFormField(controller: _cost, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Cost of goods sold', prefixText: '₹ ', helperText: 'Use 0 when no stock cost applies'), validator: (v) { final n = double.tryParse(v ?? ''); return n == null || n < 0 ? 'Enter a valid cost' : n > _saleValue ? 'Cost cannot exceed the sale total' : null; }, onChanged: (_) => setState(() {})),
+        TextFormField(controller: _cost, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Cost of goods sold', prefixText: '₹ ', helperText: 'Use 0 when no stock cost applies'), validator: (v) { final n = double.tryParse(v ?? ''); return n == null || n < 0 ? 'Enter a valid cost' : null; }, onChanged: (_) => setState(() {})),
         const SizedBox(height: 12),
         TextFormField(controller: _description, decoration: const InputDecoration(labelText: 'Description / bill reference', prefixIcon: Icon(Icons.receipt_long_outlined))),
         const SizedBox(height: 12),
