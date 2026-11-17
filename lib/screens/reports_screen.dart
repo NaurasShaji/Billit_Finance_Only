@@ -73,7 +73,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
         : LayoutBuilder(builder: (context, viewport) {
             final width = viewport.maxWidth;
             final horizontalPadding = width < 600 ? 14.0 : width < 1000 ? 22.0 : 30.0;
+            final contentWidth = width.clamp(0, 1180).toDouble();
             final columns = width >= 1050 ? 3 : width >= 620 ? 2 : 1;
+            final cardWidth = (contentWidth - horizontalPadding * 2 - (columns - 1) * 12) / columns;
             return Center(
               child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 1180),
@@ -101,12 +103,12 @@ class _ReportsScreenState extends State<ReportsScreen> {
                       spacing: 12,
                       runSpacing: 4,
                       children: [
-                        SizedBox(width: (width - horizontalPadding * 2 - (columns - 1) * 12).clamp(0, 1180) / columns, child: StatCard(title: 'Income / sales', value: money(incomeTotal), icon: Icons.trending_up, color: AppColors.positive)),
-                        SizedBox(width: (width - horizontalPadding * 2 - (columns - 1) * 12).clamp(0, 1180) / columns, child: StatCard(title: 'Cost of goods sold', value: money(costOfGoodsSold), icon: Icons.inventory_2_outlined, color: Colors.brown)),
-                        SizedBox(width: (width - horizontalPadding * 2 - (columns - 1) * 12).clamp(0, 1180) / columns, child: StatCard(title: 'Gross profit', value: money(grossProfit), icon: Icons.show_chart, color: grossProfit >= 0 ? AppColors.positive : AppColors.negative)),
-                        SizedBox(width: (width - horizontalPadding * 2 - (columns - 1) * 12).clamp(0, 1180) / columns, child: StatCard(title: 'Expenses', value: money(expenseTotal), icon: Icons.receipt_long, color: AppColors.warning)),
-                        SizedBox(width: (width - horizontalPadding * 2 - (columns - 1) * 12).clamp(0, 1180) / columns, child: StatCard(title: 'Payroll', value: money(payrollTotal), icon: Icons.groups, color: Colors.indigo)),
-                        SizedBox(width: (width - horizontalPadding * 2 - (columns - 1) * 12).clamp(0, 1180) / columns, child: StatCard(title: 'Net operating result', value: money(netProfit), icon: Icons.account_balance, color: netProfit >= 0 ? AppColors.positive : AppColors.negative)),
+                        SizedBox(width: cardWidth, child: StatCard(title: 'Income / sales', value: money(incomeTotal), icon: Icons.trending_up, color: AppColors.positive)),
+                        SizedBox(width: cardWidth, child: StatCard(title: 'Cost of goods sold', value: money(costOfGoodsSold), icon: Icons.inventory_2_outlined, color: Colors.brown)),
+                        SizedBox(width: cardWidth, child: StatCard(title: 'Gross profit', value: money(grossProfit), icon: Icons.show_chart, color: grossProfit >= 0 ? AppColors.positive : AppColors.negative)),
+                        SizedBox(width: cardWidth, child: StatCard(title: 'Expenses', value: money(expenseTotal), icon: Icons.receipt_long, color: AppColors.warning)),
+                        SizedBox(width: cardWidth, child: StatCard(title: 'Payroll', value: money(payrollTotal), icon: Icons.groups, color: Colors.indigo)),
+                        SizedBox(width: cardWidth, child: StatCard(title: 'Net operating result', value: money(netProfit), icon: Icons.account_balance, color: netProfit >= 0 ? AppColors.positive : AppColors.negative)),
                       ],
                     ),
                     const SectionHeader('Export report'),
