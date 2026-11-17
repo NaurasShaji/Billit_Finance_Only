@@ -76,50 +76,43 @@ class _SecurityQuestionsDialog extends StatefulWidget {
 }
 class _SecurityQuestionsDialogState extends State<_SecurityQuestionsDialog> {
   final _current = TextEditingController();
-  final _answers = List.generate(3, (_) => TextEditingController());
-  final _selected = <String?>[null, null, null];
+  final _answer = TextEditingController();
+  String? _selected;
   bool _saving = false;
   String? _error;
   @override
-  void dispose() { _current.dispose(); for (final c in _answers) { c.dispose(); } super.dispose(); }
+  void dispose() { _current.dispose(); _answer.dispose(); super.dispose(); }
   Future<void> _save() async {
-    if (_selected.any((v) => v == null) || _selected.toSet().length != 3) {
-      setState(() => _error = 'Select three different questions.'); return;
-    }
-    if (_answers.any((a) => a.text.trim().length < 3)) {
-      setState(() => _error = 'Each answer must contain at least 3 characters.'); return;
-    }
+    if (_selected == null) { setState(() => _error = 'Select a security question.'); return; }
+    if (_answer.text.trim().length < 3) { setState(() => _error = 'Answer must contain at least 3 characters.'); return; }
     setState(() { _saving = true; _error = null; });
     try {
-      final values = <String, String>{for (var i = 0; i < 3; i++) _selected[i]!: _answers[i].text};
-      await AdminAuthService.instance.saveRecoveryAnswers(_current.text, values);
+      await AdminAuthService.instance.saveRecoveryAnswers(_current.text, {_selected!: _answer.text});
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password recovery questions saved.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Single password recovery question saved.')));
     } catch (e) { if (mounted) setState(() => _error = e.toString().replaceFirst('Exception: ', '')); }
     finally { if (mounted) setState(() => _saving = false); }
   }
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Set up recovery questions'),
-    content: SizedBox(width: 460, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Text('Choose three different questions. Answers are stored as salted hashes. Use answers that are not easy to guess.'),
+    title: const Text('Set up password recovery'),
+    content: SizedBox(width: 440, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+      const Text('Choose one security question. You will need its answer to reset the admin password. Answers are stored as salted hashes.'),
+      const SizedBox(height: 16),
+      DropdownButtonFormField<String>(
+        value: _selected,
+        isExpanded: true,
+        decoration: const InputDecoration(labelText: 'Security question'),
+        items: AdminAuthService.securityQuestions.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))).toList(),
+        onChanged: (v) => setState(() => _selected = v),
+      ),
       const SizedBox(height: 12),
-      for (var i = 0; i < 3; i++) ...[
-        DropdownButtonFormField<String>(
-          value: _selected[i],
-          isExpanded: true,
-          decoration: InputDecoration(labelText: 'Question ${i + 1}'),
-          items: AdminAuthService.securityQuestions.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))).toList(),
-          onChanged: (v) => setState(() => _selected[i] = v),
-        ),
-        const SizedBox(height: 8),
-        TextField(controller: _answers[i], obscureText: true, decoration: InputDecoration(labelText: 'Answer ${i + 1}')),
-        const SizedBox(height: 12),
-      ],
-      TextField(controller: _current, obscureText: true, decoration: const InputDecoration(labelText: 'Confirm current admin password')),
-      if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+      TextField(controller: _answer, obscureText: true, decoration: const InputDecoration(labelText: 'Answer')),
+      const SizedBox(height: 12),
+      TextField(controller: _current, obscureText: true, decoration: const InputDecoration(labelText: 'Current admin password')),
+      if (_error != null) Align(alignment: Alignment.centerLeft, child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
     ]))),
-    actions: [TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')), FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save questions'))],
+    actions: [TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')), FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save question'))],
   );
 }
