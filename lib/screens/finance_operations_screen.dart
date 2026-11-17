@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/admin_settings_action.dart';
 import 'package:intl/intl.dart';
 import '../models/finance_models.dart';
 import '../services/database_service.dart';
@@ -11,7 +12,7 @@ class FinanceOperationsScreen extends StatelessWidget {
   const FinanceOperationsScreen({super.key});
   @override
   Widget build(BuildContext context) => DefaultTabController(length: 3, child: Scaffold(
-    appBar: AppBar(title: const Text('Income & Accounts'), bottom: const TabBar(isScrollable: true, tabs: [Tab(text: 'Income'), Tab(text: 'Credit ledger'), Tab(text: 'Cash book')])),
+    appBar: AppBar(title: const Text('Income & Accounts'), actions: const [AdminSettingsAction()], bottom: const TabBar(isScrollable: true, tabs: [Tab(text: 'Income'), Tab(text: 'Credit ledger'), Tab(text: 'Cash book')])),
     body: const TabBarView(children: [_IncomeTab(), _CreditTab(), _CashTab()]),
   ));
 }
