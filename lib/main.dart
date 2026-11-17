@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'theme/app_theme.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:sqflite/sqflite.dart';
 import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
@@ -21,13 +22,7 @@ class BillitFinanceApp extends StatelessWidget {
   Widget build(BuildContext context) => MaterialApp(
     title: 'Billit Finance',
     debugShowCheckedModeBanner: false,
-    theme: ThemeData(
-      useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF087E70)),
-      scaffoldBackgroundColor: const Color(0xFFF5F7F8),
-      appBarTheme: const AppBarTheme(backgroundColor: Color(0xFFF5F7F8), foregroundColor: Color(0xFF14232B), elevation: 0),
-      cardTheme: CardThemeData(elevation: 0, color: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18), side: const BorderSide(color: Color(0xFFE5EAED)))),
-    ),
+    theme: AppTheme.light,
     home: const _AuthGate(),
   );
 }
