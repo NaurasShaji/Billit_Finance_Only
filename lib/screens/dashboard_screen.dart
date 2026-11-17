@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/admin_settings_action.dart';
 import 'package:intl/intl.dart';
 import '../models/finance_models.dart';
 import '../services/database_service.dart';
@@ -42,7 +43,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double get netProfit => grossProfit - expenseTotal - payrollTotal;
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const BrandHeader(), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh))]),
+    appBar: AppBar(title: const BrandHeader(), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh)), const AdminSettingsAction()]),
     body: loading ? const Center(child: CircularProgressIndicator()) : RefreshIndicator(onRefresh: load, child: ListView(padding: const EdgeInsets.all(16), children: [
       Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1120), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text('Finance overview', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: AppColors.ink)),
