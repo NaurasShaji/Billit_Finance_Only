@@ -44,7 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
         const SizedBox(height: 28),
         Text(configured ? 'Welcome back' : 'Set up your workspace', textAlign: TextAlign.center, style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800, color: AppColors.ink)),
         const SizedBox(height: 8),
-        Text(configured ? 'Sign in to manage your finance operations.' : 'Create the administrator password for this device.', textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted)),
+        Text(configured ? 'Sign in to manage your finance operations. On a new installation, use the default admin password and change it from Settings.' : 'Create the administrator password for this device.', textAlign: TextAlign.center, style: const TextStyle(color: AppColors.muted)),
         const SizedBox(height: 24),
         TextField(controller: _password, obscureText: obscure, decoration: InputDecoration(labelText: configured ? 'Admin password' : 'Create admin password', prefixIcon: const Icon(Icons.lock_outline), suffixIcon: IconButton(onPressed: () => setState(() => obscure = !obscure), icon: Icon(obscure ? Icons.visibility : Icons.visibility_off))), onSubmitted: (_) => _submit()),
         if (!configured) ...[const SizedBox(height: 12), TextField(controller: _confirm, obscureText: obscure, decoration: const InputDecoration(labelText: 'Confirm password', prefixIcon: Icon(Icons.verified_user_outlined)), onSubmitted: (_) => _submit())],
