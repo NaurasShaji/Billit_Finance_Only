@@ -66,7 +66,7 @@ class _IncomeEntryPageState extends State<IncomeEntryPage> {
         const SizedBox(height: 16),
         Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: AppColors.background, borderRadius: BorderRadius.circular(14)), child: Column(children: [
           FinanceUiRow(label: 'Gross profit', value: _saleValue - _costValue),
-          FinanceUiRow(label: 'Outstanding balance', value: (_saleValue - _paidValue).clamp(0, double.infinity), emphasize: true),
+          FinanceUiRow(label: 'Outstanding balance', value: (_saleValue - _paidValue).clamp(0, double.infinity).toDouble(), emphasize: true),
         ])),
       ]))),
       const SizedBox(height: 12),
