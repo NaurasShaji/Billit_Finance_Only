@@ -43,8 +43,8 @@ class AdminAuthService {
     if (!await verify(currentPassword)) {
       throw Exception('Current admin password is incorrect.');
     }
-    if (answers.length != 3 || answers.values.any((a) => a.trim().length < 3)) {
-      throw ArgumentError('Choose three questions and provide answers of at least 3 characters.');
+    if (answers.length != 1 || answers.values.any((a) => a.trim().length < 3)) {
+      throw ArgumentError('Choose one security question and provide an answer of at least 3 characters.');
     }
     final entries = <String, Map<String, String>>{};
     for (final entry in answers.entries) {
