@@ -66,13 +66,74 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Future<void> _shareCsv() async {await Share.shareXFiles([XFile.fromData(_csv(),mimeType:'text/csv',name:'billit_finance_report.csv')],subject:'Billit Finance CSV - $label');}
   Future<void> _share() async {final bytes=await _pdf();await Share.shareXFiles([XFile.fromData(bytes,mimeType:'application/pdf',name:'billit_finance_report.pdf')],subject:'Billit Finance Report - $label');}
   @override
-  Widget build(BuildContext context)=>Scaffold(appBar:AppBar(title:const Text('Finance Reports')),body:loading?const Center(child:CircularProgressIndicator()):ListView(padding:const EdgeInsets.all(16),children:[
-    Center(child:ConstrainedBox(constraints:const BoxConstraints(maxWidth:1040),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[
-      SegmentedButton<String>(segments:const[ButtonSegment(value:'day',label:Text('Daily')),ButtonSegment(value:'month',label:Text('Monthly')),ButtonSegment(value:'year',label:Text('Yearly'))],selected:{period},onSelectionChanged:(v){setState(()=>period=v.first);load();}),
-      const SizedBox(height:10),PeriodSwitcher(label:label,onPrevious:()=>shiftPeriod(-1),onNext:()=>shiftPeriod(1)),
-      LayoutBuilder(builder:(context,box){final n=box.maxWidth>760?3:box.maxWidth>480?2:1;final w=(box.maxWidth-(n-1)*10)/n;return Wrap(spacing:10,runSpacing:10,children:[SizedBox(width:w,child:StatCard(title:'Income / sales',value:money(incomeTotal),icon:Icons.trending_up,color:AppColors.positive)),SizedBox(width:w,child:StatCard(title:'Cost of goods sold',value:money(costOfGoodsSold),icon:Icons.inventory_2_outlined,color:Colors.brown)),SizedBox(width:w,child:StatCard(title:'Gross profit',value:money(grossProfit),icon:Icons.show_chart,color:AppColors.positive)),SizedBox(width:w,child:StatCard(title:'Expenses',value:money(expenseTotal),icon:Icons.receipt_long,color:AppColors.warning)),SizedBox(width:w,child:StatCard(title:'Payroll',value:money(payrollTotal),icon:Icons.groups,color:Colors.indigo)),SizedBox(width:w,child:StatCard(title:'Net operating result',value:money(netProfit),icon:Icons.account_balance,color:netProfit>=0?AppColors.positive:AppColors.negative))]);}),
-      const SectionHeader('Export report'),Card(child:Padding(padding:const EdgeInsets.all(16),child:Wrap(spacing:10,runSpacing:10,children:[FilledButton.icon(onPressed:_download,icon:const Icon(Icons.download),label:const Text('Download PDF')),OutlinedButton.icon(onPressed:_share,icon:const Icon(Icons.share),label:const Text('Share PDF')),OutlinedButton.icon(onPressed:_downloadCsv,icon:const Icon(Icons.table_view),label:const Text('Download CSV')),OutlinedButton.icon(onPressed:_shareCsv,icon:const Icon(Icons.share_outlined),label:const Text('Share CSV'))]))),
-      const Padding(padding:EdgeInsets.all(8),child:Text('Net operating result is sales less recorded COGS, expenses and payroll; it is not a tax or statutory profit calculation.',style:TextStyle(color:AppColors.muted))),
-    ]))),
-  ]));
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Finance Reports')),
+    body: loading
+        ? const Center(child: CircularProgressIndicator())
+        : LayoutBuilder(builder: (context, viewport) {
+            final width = viewport.maxWidth;
+            final horizontalPadding = width < 600 ? 14.0 : width < 1000 ? 22.0 : 30.0;
+            final columns = width >= 1050 ? 3 : width >= 620 ? 2 : 1;
+            return Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1180),
+                child: ListView(
+                  padding: EdgeInsets.fromLTRB(horizontalPadding, 18, horizontalPadding, 28),
+                  children: [
+                    const Text('Performance summary', style: TextStyle(fontSize: 22, fontWeight: FontWeight.w800, color: AppColors.ink)),
+                    const SizedBox(height: 4),
+                    const Text('Review income, operating costs and payroll for the selected period.', style: TextStyle(color: AppColors.muted)),
+                    const SizedBox(height: 18),
+                    SegmentedButton<String>(
+                      expandedInsets: EdgeInsets.zero,
+                      segments: const [
+                        ButtonSegment(value: 'day', label: Text('Daily'), icon: Icon(Icons.today_outlined)),
+                        ButtonSegment(value: 'month', label: Text('Monthly'), icon: Icon(Icons.calendar_month_outlined)),
+                        ButtonSegment(value: 'year', label: Text('Yearly'), icon: Icon(Icons.date_range_outlined)),
+                      ],
+                      selected: {period},
+                      onSelectionChanged: (value) { setState(() => period = value.first); load(); },
+                    ),
+                    const SizedBox(height: 10),
+                    PeriodSwitcher(label: label, onPrevious: () => shiftPeriod(-1), onNext: () => shiftPeriod(1)),
+                    const SizedBox(height: 10),
+                    Wrap(
+                      spacing: 12,
+                      runSpacing: 4,
+                      children: [
+                        SizedBox(width: (width - horizontalPadding * 2 - (columns - 1) * 12).clamp(0, 1180) / columns, child: StatCard(title: 'Income / sales', value: money(incomeTotal), icon: Icons.trending_up, color: AppColors.positive)),
+                        SizedBox(width: (width - horizontalPadding * 2 - (columns - 1) * 12).clamp(0, 1180) / columns, child: StatCard(title: 'Cost of goods sold', value: money(costOfGoodsSold), icon: Icons.inventory_2_outlined, color: Colors.brown)),
+                        SizedBox(width: (width - horizontalPadding * 2 - (columns - 1) * 12).clamp(0, 1180) / columns, child: StatCard(title: 'Gross profit', value: money(grossProfit), icon: Icons.show_chart, color: grossProfit >= 0 ? AppColors.positive : AppColors.negative)),
+                        SizedBox(width: (width - horizontalPadding * 2 - (columns - 1) * 12).clamp(0, 1180) / columns, child: StatCard(title: 'Expenses', value: money(expenseTotal), icon: Icons.receipt_long, color: AppColors.warning)),
+                        SizedBox(width: (width - horizontalPadding * 2 - (columns - 1) * 12).clamp(0, 1180) / columns, child: StatCard(title: 'Payroll', value: money(payrollTotal), icon: Icons.groups, color: Colors.indigo)),
+                        SizedBox(width: (width - horizontalPadding * 2 - (columns - 1) * 12).clamp(0, 1180) / columns, child: StatCard(title: 'Net operating result', value: money(netProfit), icon: Icons.account_balance, color: netProfit >= 0 ? AppColors.positive : AppColors.negative)),
+                      ],
+                    ),
+                    const SectionHeader('Export report'),
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: LayoutBuilder(builder: (context, actionsBox) {
+                          final actionWidth = actionsBox.maxWidth < 460 ? actionsBox.maxWidth : (actionsBox.maxWidth - 12) / 2;
+                          return Wrap(
+                            spacing: 12,
+                            runSpacing: 12,
+                            children: [
+                              SizedBox(width: actionWidth, child: FilledButton.icon(onPressed: _download, icon: const Icon(Icons.download), label: const Text('Download PDF'))),
+                              SizedBox(width: actionWidth, child: OutlinedButton.icon(onPressed: _share, icon: const Icon(Icons.share), label: const Text('Share PDF'))),
+                              SizedBox(width: actionWidth, child: OutlinedButton.icon(onPressed: _downloadCsv, icon: const Icon(Icons.table_view), label: const Text('Download CSV'))),
+                              SizedBox(width: actionWidth, child: OutlinedButton.icon(onPressed: _shareCsv, icon: const Icon(Icons.share_outlined), label: const Text('Share CSV'))),
+                            ],
+                          );
+                        }),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text('Net operating result is sales less recorded COGS, expenses and payroll; it is not a tax or statutory profit calculation.', style: TextStyle(color: AppColors.muted, fontSize: 12)),
+                  ],
+                ),
+              ),
+            );
+          }),
+
 }
