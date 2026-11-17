@@ -1,4 +1,5 @@
 import 'dart:typed_data';
+import '../widgets/admin_settings_action.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -67,7 +68,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   Future<void> _share() async {final bytes=await _pdf();await Share.shareXFiles([XFile.fromData(bytes,mimeType:'application/pdf',name:'billit_finance_report.pdf')],subject:'Billit Finance Report - $label');}
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Finance Reports')),
+    appBar: AppBar(title: const Text('Finance Reports'), actions: const [AdminSettingsAction()]),
     body: loading
         ? const Center(child: CircularProgressIndicator())
         : LayoutBuilder(builder: (context, viewport) {
