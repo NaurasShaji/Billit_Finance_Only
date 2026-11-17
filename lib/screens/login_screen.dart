@@ -3,6 +3,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import '../services/admin_auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/ui_kit.dart';
+import 'forgot_password_dialog.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key, required this.onAuthenticated});
@@ -51,6 +52,22 @@ class _LoginScreenState extends State<LoginScreen> {
         if (error != null) ...[const SizedBox(height: 12), Text(error!, style: TextStyle(color: Theme.of(context).colorScheme.error))],
         const SizedBox(height: 22),
         FilledButton(onPressed: _submit, child: Text(configured ? 'Sign in' : 'Create admin account')),
+        if (configured) ...[
+          const SizedBox(height: 8),
+          TextButton(
+            onPressed: () async {
+              final reset = await showDialog<bool>(
+                context: context,
+                builder: (_) => const ForgotPasswordDialog(),
+              );
+              if (reset == true && mounted) {
+                _password.clear();
+                setState(() => error = 'Password reset. Sign in with your new password.');
+              }
+            },
+            child: const Text('Forgot password?'),
+          ),
+        ],
       ]))),
     )))));
   }
