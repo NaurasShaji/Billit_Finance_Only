@@ -55,7 +55,7 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
       : _questionIds.isEmpty
         ? const Text('Password recovery has not been configured. Ask the administrator to sign in and set up security questions in Settings. If the password is lost before setup, local app data must be reset.')
         : Column(mainAxisSize: MainAxisSize.min, children: [
-            const Text('Answer all three security questions to set a new password.'),
+            Text(_questionIds.length == 1 ? 'Answer your security question to set a new password.' : 'Answer your previously configured security questions to set a new password.'),
             const SizedBox(height: 12),
             for (final id in _questionIds) ...[
               Align(alignment: Alignment.centerLeft, child: Text(AdminAuthService.securityQuestions[id] ?? 'Security question', style: Theme.of(context).textTheme.labelLarge)),
