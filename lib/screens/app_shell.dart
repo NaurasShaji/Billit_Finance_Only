@@ -24,12 +24,29 @@ class _AppShellState extends State<AppShell> {
     NavigationDestination(icon: Icon(Icons.cloud_outlined), selectedIcon: Icon(Icons.cloud), label: 'Backup'),
   ];
   @override
-  Widget build(BuildContext context) => Scaffold(
-    body: IndexedStack(index: index, children: pages),
-    bottomNavigationBar: NavigationBar(
-      selectedIndex: index,
-      onDestinationSelected: (value) => setState(() => index = value),
-      destinations: destinations,
-    ),
-  );
+  Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width >= 840;
+    return Scaffold(
+      body: Row(children: [
+        if (wide) ...[
+          NavigationRail(
+            selectedIndex: index,
+            onDestinationSelected: (value) => setState(() => index = value),
+            labelType: NavigationRailLabelType.all,
+            destinations: destinations.map((d) => NavigationRailDestination(icon: d.icon, selectedIcon: d.selectedIcon, label: Text(d.label))).toList(),
+          ),
+          const VerticalDivider(width: 1),
+        ],
+        Expanded(child: Center(child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 1440),
+          child: IndexedStack(index: index, children: pages),
+        ))),
+      ]),
+      bottomNavigationBar: wide ? null : NavigationBar(
+        selectedIndex: index,
+        onDestinationSelected: (value) => setState(() => index = value),
+        destinations: destinations,
+      ),
+    );
+  }
 }
