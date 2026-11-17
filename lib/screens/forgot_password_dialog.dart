@@ -1,0 +1,79 @@
+import 'package:flutter/material.dart';
+import '../services/admin_auth_service.dart';
+
+class ForgotPasswordDialog extends StatefulWidget {
+  const ForgotPasswordDialog({super.key});
+  @override
+  State<ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
+}
+class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
+  List<String> _questionIds = [];
+  final _answers = <String, TextEditingController>{};
+  final _password = TextEditingController();
+  final _confirm = TextEditingController();
+  bool _loading = true, _saving = false, _obscure = true;
+  String? _error;
+
+  @override
+  void initState() { super.initState(); _load(); }
+  Future<void> _load() async {
+    final ids = await AdminAuthService.instance.getRecoveryQuestionIds();
+    if (!mounted) return;
+    setState(() {
+      _questionIds = ids;
+      for (final id in ids) { _answers[id] = TextEditingController(); }
+      _loading = false;
+    });
+  }
+  @override
+  void dispose() {
+    for (final c in _answers.values) { c.dispose(); }
+    _password.dispose(); _confirm.dispose(); super.dispose();
+  }
+  Future<void> _reset() async {
+    if (_password.text.length < 8) { setState(() => _error = 'New password must contain at least 8 characters.'); return; }
+    if (_password.text != _confirm.text) { setState(() => _error = 'Passwords do not match.'); return; }
+    setState(() { _saving = true; _error = null; });
+    try {
+      await AdminAuthService.instance.resetPasswordWithRecovery(
+        {for (final id in _questionIds) id: _answers[id]!.text},
+        _password.text,
+      );
+      if (!mounted) return;
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (mounted) setState(() => _error = e.toString().replaceFirst('Exception: ', ''));
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Recover admin password'),
+    content: SizedBox(width: 440, child: SingleChildScrollView(child: _loading
+      ? const Center(child: CircularProgressIndicator())
+      : _questionIds.isEmpty
+        ? const Text('Password recovery has not been configured. Ask the administrator to sign in and set up security questions in Settings. If the password is lost before setup, local app data must be reset.')
+        : Column(mainAxisSize: MainAxisSize.min, children: [
+            const Text('Answer all three security questions to set a new password.'),
+            const SizedBox(height: 12),
+            for (final id in _questionIds) ...[
+              Align(alignment: Alignment.centerLeft, child: Text(AdminAuthService.securityQuestions[id] ?? 'Security question', style: Theme.of(context).textTheme.labelLarge)),
+              const SizedBox(height: 6),
+              TextField(controller: _answers[id], decoration: const InputDecoration(labelText: 'Your answer')),
+              const SizedBox(height: 12),
+            ],
+            TextField(controller: _password, obscureText: _obscure, decoration: const InputDecoration(labelText: 'New password')),
+            const SizedBox(height: 10),
+            TextField(controller: _confirm, obscureText: _obscure, decoration: const InputDecoration(labelText: 'Confirm new password')),
+            Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => setState(() => _obscure = !_obscure), icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined), label: Text(_obscure ? 'Show passwords' : 'Hide passwords'))),
+            if (_error != null) Align(alignment: Alignment.centerLeft, child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+          ])
+    )),
+    actions: [
+      TextButton(onPressed: _saving ? null : () => Navigator.pop(context, false), child: const Text('Cancel')),
+      if (!_loading && _questionIds.isNotEmpty)
+        FilledButton(onPressed: _saving ? null : _reset, child: Text(_saving ? 'Verifying…' : 'Reset password')),
+    ],
+  );
+}
