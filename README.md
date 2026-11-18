@@ -17,6 +17,12 @@ Standalone Flutter application for the finance-monitoring functionality extracte
 - Google Drive OAuth connection, JSON backup, backup listing and restore.
 - Single local administrator account. First launch creates the admin password; later launches require that password.
 - Billit logo and launcher icon assets/configuration.
+- Light, dark and automatic appearance, remembered between launches (Settings).
+- Overview with net-result hero card, month-over-month change chips, spending breakdown, recent activity and quick actions (add sale, add expense, pay staff).
+- Hide-amounts toggle that masks every money value on screen.
+- Expenses and sales grouped by day, category filter chips, swipe-to-delete with undo, and Paid / Partial / Due status on sales.
+- Faster entry forms: Today / Yesterday date chips, "Paid in full" shortcut and chip-based pickers.
+- Screens refresh automatically after any change, so tabs never show stale totals.
 
 ## Data and backup behavior
 
