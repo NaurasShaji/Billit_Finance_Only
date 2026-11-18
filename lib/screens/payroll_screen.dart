@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
-import '../widgets/admin_settings_action.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+
 import '../models/finance_models.dart';
 import '../services/database_service.dart';
 import '../services/finance_calculator.dart';
 import '../theme/app_theme.dart';
+import '../widgets/admin_settings_action.dart';
+import '../widgets/finance_ui.dart';
 import '../widgets/ui_kit.dart';
 import 'entry_form_screens.dart';
 
@@ -13,64 +16,298 @@ class PayrollScreen extends StatefulWidget {
   @override
   State<PayrollScreen> createState() => _PayrollScreenState();
 }
+
 class _PayrollScreenState extends State<PayrollScreen> {
   List<EmployeeRecord> employees = [];
   List<PayrollPayment> payments = [];
   bool loading = true;
+
   @override
-  void initState() { super.initState(); load(); }
+  void initState() {
+    super.initState();
+    DatabaseService.revision.addListener(load);
+    load();
+  }
+
+  @override
+  void dispose() {
+    DatabaseService.revision.removeListener(load);
+    super.dispose();
+  }
+
   Future<void> load() async {
     final employeeRows = await DatabaseService.instance.employees();
     final paymentRows = await DatabaseService.instance.payroll();
     if (!mounted) return;
-    setState(() { employees = employeeRows; payments = paymentRows; loading = false; });
+    setState(() {
+      employees = employeeRows;
+      payments = paymentRows;
+      loading = false;
+    });
   }
+
   Future<void> addEmployee([EmployeeRecord? existing]) async {
-    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => EmployeeEntryPage(existing: existing),
-    ));
-    if (saved == true) await load();
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => EmployeeEntryPage(existing: existing)),
+    );
+    await load();
   }
 
   Future<void> removeEmployee(EmployeeRecord employee) async {
-    final confirmed = await showDialog<bool>(context: context, builder: (ctx) => AlertDialog(title: const Text('Remove employee'), content: Text('Remove ${employee.name} from the active employee list? Existing payroll history will be retained.'), actions: [TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Remove'))]));
-    if (confirmed == true) { await DatabaseService.instance.archiveEmployee(employee.id!); await load(); }
+    final confirmed = await FinanceUi.confirm(
+      context,
+      'Remove ${employee.name}?',
+      confirmLabel: 'Remove',
+    );
+    if (!confirmed) return;
+    await DatabaseService.instance.archiveEmployee(employee.id!);
+    await load();
   }
+
+  String _periodFor(EmployeeRecord employee, DateTime now) =>
+      employee.type == 'daily'
+      ? DateFormat('yyyy-MM-dd').format(now)
+      : DateFormat('yyyy-MM').format(now);
+
+  bool _isPaid(EmployeeRecord employee) {
+    final period = _periodFor(employee, DateTime.now());
+    return payments.any(
+      (p) => p.employeeId == employee.id && p.period == period,
+    );
+  }
+
   Future<void> pay(EmployeeRecord employee) async {
-    final controller = TextEditingController(text: employee.wage.toStringAsFixed(2));
     final now = DateTime.now();
-    final period = employee.type == 'daily' ? DateFormat('yyyy-MM-dd').format(now) : DateFormat('yyyy-MM').format(now);
-    if (payments.any((payment) => payment.employeeId == employee.id && payment.period == period)) { ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Payment already recorded for this period.'))); controller.dispose(); return; }
-    final ok = await showDialog<bool>(context: context, builder: (dialogContext) => AlertDialog(title: Text('Pay ${employee.name}'), content: TextField(controller: controller, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: const InputDecoration(labelText: 'Payment amount (₹)')), actions: [TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')), FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Confirm payment'))]));
-    final amount = double.tryParse(controller.text);
-    if (ok == true && amount != null && amount > 0) { await DatabaseService.instance.addPayroll(PayrollPayment(id: null, employeeId: employee.id!, date: now, period: period, amount: amount, type: employee.type)); await load(); }
-    controller.dispose();
+    final period = _periodFor(employee, now);
+    if (_isPaid(employee)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Already paid for this period')),
+      );
+      return;
+    }
+    final amount = await showAmountDialog(
+      context,
+      title: 'Pay ${employee.name}',
+      initial: employee.wage,
+      confirmLabel: 'Pay',
+    );
+    if (amount == null) return;
+    await DatabaseService.instance.addPayroll(
+      PayrollPayment(
+        id: null,
+        employeeId: employee.id!,
+        date: now,
+        period: period,
+        amount: amount,
+        type: employee.type,
+      ),
+    );
+    HapticFeedback.lightImpact();
+    await load();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            'Paid ${FinanceCalculator.money(amount)} to ${employee.name}',
+          ),
+        ),
+      );
   }
+
   @override
   Widget build(BuildContext context) {
     final month = DateFormat('yyyy-MM').format(DateTime.now());
-    final monthlyTotal = payments.where((p) => p.period == month).fold<double>(0, (s,p) => s+p.amount);
+    final monthlyTotal = payments
+        .where((p) => p.period.startsWith(month))
+        .fold<double>(0, (s, p) => s + p.amount);
+    final paidCount = employees.where(_isPaid).length;
+    final names = {for (final e in employees) e.id: e.name};
     return Scaffold(
-      appBar: AppBar(title: const Text('Payroll'), actions: [IconButton(onPressed: load, icon: const Icon(Icons.refresh)), const AdminSettingsAction()]),
-      floatingActionButton: FloatingActionButton.extended(onPressed: addEmployee, icon: const Icon(Icons.person_add), label: const Text('Add employee')),
-      body: loading ? const Center(child: CircularProgressIndicator()) : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1100), child: ListView(padding: const EdgeInsets.all(16), children: [
-        LayoutBuilder(builder: (context, box) { final count = box.maxWidth > 700 ? 2 : 1; return Wrap(spacing: 12, runSpacing: 12, children: [SizedBox(width: count == 1 ? box.maxWidth : (box.maxWidth-12)/2, child: StatCard(title: 'Payroll this month', value: FinanceCalculator.money(monthlyTotal), icon: Icons.payments_outlined, color: AppColors.brand)), SizedBox(width: count == 1 ? box.maxWidth : (box.maxWidth-12)/2, child: StatCard(title: 'Active employees', value: '${employees.length}', icon: Icons.groups_outlined, color: Colors.indigo))]); }),
-        const SectionHeader('Employee list'),
-        if (employees.isEmpty) const EmptyState(title: 'No employees added', message: 'Add employees to start recording payroll.', icon: Icons.groups_outlined),
-        ...employees.map((employee) {
-          final period = employee.type == 'daily' ? DateFormat('yyyy-MM-dd').format(DateTime.now()) : month;
-          final paid = payments.any((p) => p.employeeId == employee.id && p.period == period);
-          return Card(child: Padding(padding: const EdgeInsets.symmetric(vertical: 4), child: ListTile(
-            leading: CircleAvatar(backgroundColor: AppColors.brand.withValues(alpha: .10), child: Text(employee.name.isEmpty ? '?' : employee.name[0].toUpperCase(), style: const TextStyle(color: AppColors.brand, fontWeight: FontWeight.w800))),
-            title: Text(employee.name, style: const TextStyle(fontWeight: FontWeight.w700)),
-            subtitle: Text('${employee.type == 'daily' ? 'Daily wage' : 'Monthly salary'} • ${FinanceCalculator.money(employee.wage)}'),
-            trailing: Wrap(spacing: 2, crossAxisAlignment: WrapCrossAlignment.center, children: [IconButton(tooltip: 'Edit employee', onPressed: () => addEmployee(employee), icon: const Icon(Icons.edit_outlined)), IconButton(tooltip: 'Remove employee', onPressed: () => removeEmployee(employee), icon: const Icon(Icons.delete_outline)), FilledButton(onPressed: paid ? null : () => pay(employee), child: Text(paid ? 'Paid' : 'Pay'))]),
-          )));
-        }),
-        const SectionHeader('Recent payments'),
-        if (payments.isEmpty) const EmptyState(title: 'No payroll payments yet', icon: Icons.payments_outlined),
-        ...payments.take(25).map((payment) => Card(child: ListTile(leading: const CircleAvatar(child: Icon(Icons.receipt_long_outlined)), title: Text(payment.type == 'daily' ? 'Daily wage payment' : 'Monthly salary payment'), subtitle: Text('${DateFormat('dd MMM yyyy').format(payment.date)} • ${payment.period}'), trailing: Text(FinanceCalculator.money(payment.amount), style: const TextStyle(fontWeight: FontWeight.w800))))),
-      ]))),
+      appBar: AppBar(
+        title: const Text('Payroll'),
+        actions: const [AdminSettingsAction()],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: addEmployee,
+        icon: const Icon(Icons.person_add),
+        label: const Text('Add employee'),
+      ),
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1000),
+                child: ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
+                  children: [
+                    Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(18),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Text(
+                                  'Paid this month',
+                                  style: TextStyle(
+                                    color: context.muted,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const Spacer(),
+                                Text(
+                                  '$paidCount of ${employees.length} paid',
+                                  style: TextStyle(
+                                    color: context.muted,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            MaskedText(
+                              FinanceCalculator.money(monthlyTotal),
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: -0.5,
+                              ),
+                            ),
+                            const SizedBox(height: 14),
+                            LinearProgressIndicator(
+                              value: employees.isEmpty
+                                  ? 0
+                                  : paidCount / employees.length,
+                              minHeight: 8,
+                              borderRadius: BorderRadius.circular(8),
+                              backgroundColor: context.hairline,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SectionHeader('Employees'),
+                    if (employees.isEmpty)
+                      const EmptyState(
+                        title: 'No employees yet',
+                        icon: Icons.groups_outlined,
+                      ),
+                    ...employees.map((employee) {
+                      final paid = _isPaid(employee);
+                      return Card(
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.fromLTRB(
+                            16,
+                            4,
+                            4,
+                            4,
+                          ),
+                          leading: CircleAvatar(
+                            backgroundColor: context.accent.withValues(
+                              alpha: .12,
+                            ),
+                            child: Text(
+                              employee.name.isEmpty
+                                  ? '?'
+                                  : employee.name[0].toUpperCase(),
+                              style: TextStyle(
+                                color: context.accent,
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                          ),
+                          title: Text(
+                            employee.name,
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                          subtitle: Text(
+                            '${employee.type == 'daily' ? 'Daily' : 'Monthly'} • ${FinanceCalculator.money(employee.wage)}',
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (paid)
+                                StatusPill('Paid', context.good)
+                              else
+                                FilledButton.tonal(
+                                  style: FilledButton.styleFrom(
+                                    minimumSize: const Size(0, 38),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 16,
+                                    ),
+                                  ),
+                                  onPressed: () => pay(employee),
+                                  child: const Text('Pay'),
+                                ),
+                              PopupMenuButton<String>(
+                                tooltip: 'More',
+                                onSelected: (value) {
+                                  if (value == 'edit') addEmployee(employee);
+                                  if (value == 'remove')
+                                    removeEmployee(employee);
+                                },
+                                itemBuilder: (_) => const [
+                                  PopupMenuItem(
+                                    value: 'edit',
+                                    child: Text('Edit'),
+                                  ),
+                                  PopupMenuItem(
+                                    value: 'remove',
+                                    child: Text('Remove'),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }),
+                    const SectionHeader('Recent payments'),
+                    if (payments.isEmpty)
+                      const EmptyState(
+                        title: 'No payments yet',
+                        icon: Icons.payments_outlined,
+                      ),
+                    ...payments
+                        .take(15)
+                        .map(
+                          (payment) => Card(
+                            child: ListTile(
+                              leading: CircleAvatar(
+                                backgroundColor: context.softFill,
+                                child: Icon(
+                                  Icons.payments_outlined,
+                                  color: context.muted,
+                                ),
+                              ),
+                              title: Text(
+                                names[payment.employeeId] ??
+                                    (payment.type == 'daily'
+                                        ? 'Daily wage'
+                                        : 'Monthly salary'),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              subtitle: Text(
+                                '${payment.type == 'daily' ? 'Daily' : 'Monthly'} • ${dayLabel(payment.date)}',
+                              ),
+                              trailing: MaskedText(
+                                FinanceCalculator.money(payment.amount),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                  ],
+                ),
+              ),
+            ),
     );
   }
 }

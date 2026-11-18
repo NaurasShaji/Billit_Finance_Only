@@ -35,5 +35,11 @@ void main() {
     test('currency formatter returns a non-empty value', () {
       expect(FinanceCalculator.money(1250), isNotEmpty);
     });
+
+    test('percent change compares against the previous period', () {
+      expect(FinanceCalculator.percentChange(120, 100), closeTo(20, 0.001));
+      expect(FinanceCalculator.percentChange(80, 100), closeTo(-20, 0.001));
+      expect(FinanceCalculator.percentChange(50, 0), isNull);
+    });
   });
 }

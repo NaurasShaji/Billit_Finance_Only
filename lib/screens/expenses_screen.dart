@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
-import '../widgets/admin_settings_action.dart';
-import 'package:intl/intl.dart';
+
 import '../models/finance_models.dart';
 import '../services/database_service.dart';
 import '../services/finance_calculator.dart';
-import '../widgets/finance_ui.dart';
 import '../theme/app_theme.dart';
+import '../widgets/admin_settings_action.dart';
+import '../widgets/finance_ui.dart';
 import '../widgets/ui_kit.dart';
 import 'entry_form_screens.dart';
 
@@ -14,46 +14,263 @@ class ExpensesScreen extends StatefulWidget {
   @override
   State<ExpensesScreen> createState() => _ExpensesScreenState();
 }
+
+class _Row {
+  const _Row.header(this.label, this.total) : entry = null;
+  const _Row.item(this.entry) : label = null, total = 0;
+  final String? label;
+  final double total;
+  final ExpenseRecord? entry;
+}
+
 class _ExpensesScreenState extends State<ExpensesScreen> {
   List<ExpenseRecord> items = [];
   bool loading = true;
   String query = '';
   String category = 'All';
-  final List<String> customCategories = [];
-  List<String> get allCategories => {...categories, ...customCategories, ...items.map((e) => e.category)}.toList()..sort();
   final search = TextEditingController();
-  static const categories = ['Rent', 'Utilities', 'Transport', 'Supplies', 'Maintenance', 'Salary-Monthly', 'Salary-Daily', 'Miscellaneous'];
+
+  List<String> get allCategories =>
+      {...expenseCategories, ...items.map((e) => e.category)}.toList()..sort();
+
   @override
-  void initState() { super.initState(); refresh(); }
+  void initState() {
+    super.initState();
+    DatabaseService.revision.addListener(refresh);
+    refresh();
+  }
+
   @override
-  void dispose() { search.dispose(); super.dispose(); }
-  Future<void> refresh() async { final values = await DatabaseService.instance.expenses(); if (!mounted) return; setState(() { items = values; loading = false; }); }
+  void dispose() {
+    DatabaseService.revision.removeListener(refresh);
+    search.dispose();
+    super.dispose();
+  }
+
+  Future<void> refresh() async {
+    final values = await DatabaseService.instance.expenses();
+    if (!mounted) return;
+    setState(() {
+      items = values;
+      loading = false;
+    });
+  }
 
   Future<void> edit([ExpenseRecord? old]) async {
-    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => ExpenseEntryPage(existing: old),
-    ));
-    if (saved == true) await refresh();
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => ExpenseEntryPage(existing: old)),
+    );
+    await refresh();
+  }
+
+  Future<void> _delete(ExpenseRecord entry) async {
+    setState(() => items.removeWhere((e) => e.id == entry.id));
+    await DatabaseService.instance.deleteExpense(entry.id!);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context)
+      ..clearSnackBars()
+      ..showSnackBar(
+        SnackBar(
+          content: const Text('Expense deleted'),
+          action: SnackBarAction(
+            label: 'Undo',
+            onPressed: () async {
+              await DatabaseService.instance.addExpense(
+                ExpenseRecord(
+                  id: null,
+                  date: entry.date,
+                  category: entry.category,
+                  amount: entry.amount,
+                  description: entry.description,
+                ),
+              );
+              await refresh();
+            },
+          ),
+        ),
+      );
+  }
+
+  List<ExpenseRecord> get shown {
+    final q = query.trim().toLowerCase();
+    return items
+        .where(
+          (e) =>
+              (category == 'All' || e.category == category) &&
+              (q.isEmpty ||
+                  '${e.category} ${e.description} ${e.amount}'
+                      .toLowerCase()
+                      .contains(q)),
+        )
+        .toList();
+  }
+
+  List<_Row> _rows(List<ExpenseRecord> entries) {
+    final groups = <String, List<ExpenseRecord>>{};
+    for (final e in entries) {
+      groups.putIfAbsent(dayLabel(e.date), () => []).add(e);
+    }
+    return [
+      for (final g in groups.entries) ...[
+        _Row.header(g.key, g.value.fold<double>(0, (s, e) => s + e.amount)),
+        for (final e in g.value) _Row.item(e),
+      ],
+    ];
   }
 
   @override
   Widget build(BuildContext context) {
-    final shown = items.where((entry) => (category == 'All' || entry.category == category) && ('${entry.category} ${entry.description} ${entry.amount}'.toLowerCase().contains(query.toLowerCase()))).toList();
-    final total = shown.fold<double>(0, (sum, entry) => sum + entry.amount);
+    final entries = shown;
+    final total = entries.fold<double>(0, (sum, e) => sum + e.amount);
+    final rows = _rows(entries);
     return Scaffold(
-      appBar: AppBar(title: const Text('Expenses'), actions: [IconButton(onPressed: refresh, icon: const Icon(Icons.refresh)), const AdminSettingsAction()]),
-      floatingActionButton: FloatingActionButton.extended(onPressed: () => edit(), icon: const Icon(Icons.add), label: const Text('Add expense')),
-      body: loading ? const Center(child: CircularProgressIndicator()) : Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 1040), child: Column(children: [
-        Padding(padding: const EdgeInsets.all(16), child: Column(children: [
-          TextField(controller: search, onChanged: (value) => setState(() => query = value), decoration: const InputDecoration(prefixIcon: Icon(Icons.search), hintText: 'Search expenses')),
-          const SizedBox(height: 10),
-          Row(children: [Expanded(child: DropdownButtonFormField<String>(value: category, items: ['All', ...allCategories].toSet().map((item) => DropdownMenuItem(value: item, child: Text(item))).toList(), onChanged: (value) => setState(() => category = value ?? 'All'), decoration: const InputDecoration(labelText: 'Filter category'))), const SizedBox(width: 12), Expanded(child: Card(child: Padding(padding: const EdgeInsets.all(14), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Text('Total shown', style: TextStyle(color: AppColors.muted, fontSize: 12)), Text(FinanceCalculator.money(total), style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18))]))))]),
-        ])),
-        Expanded(child: shown.isEmpty ? const EmptyState(title: 'No expenses found', message: 'Add an expense or adjust your search and filters.', icon: Icons.receipt_long_outlined) : ListView.separated(padding: const EdgeInsets.fromLTRB(16, 0, 16, 90), itemCount: shown.length, separatorBuilder: (_, __) => const SizedBox(height: 4), itemBuilder: (context, index) {
-          final entry = shown[index];
-          return Card(child: ListTile(leading: CircleAvatar(backgroundColor: AppColors.brand.withValues(alpha: .10), child: const Icon(Icons.receipt_long, color: AppColors.brand)), title: Text(entry.description.isEmpty ? entry.category : entry.description, style: const TextStyle(fontWeight: FontWeight.w700)), subtitle: Text('${entry.category} • ${DateFormat('dd MMM yyyy').format(entry.date)}'), trailing: Column(mainAxisAlignment: MainAxisAlignment.center, crossAxisAlignment: CrossAxisAlignment.end, children: [Text(FinanceCalculator.money(entry.amount), style: const TextStyle(fontWeight: FontWeight.w800)), const Text('Expense', style: TextStyle(color: AppColors.muted, fontSize: 11))]), onTap: () => edit(entry), onLongPress: () async { if (await FinanceUi.confirm(context, 'Delete this expense?')) { await DatabaseService.instance.deleteExpense(entry.id!); await refresh(); } }));
-        })),
-      ]))),
+      appBar: AppBar(
+        title: const Text('Expenses'),
+        actions: const [AdminSettingsAction()],
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => edit(),
+        icon: const Icon(Icons.add),
+        label: const Text('Add expense'),
+      ),
+      body: loading
+          ? const Center(child: CircularProgressIndicator())
+          : Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1040),
+                child: Column(
+                  children: [
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+                      child: TextField(
+                        controller: search,
+                        onChanged: (value) => setState(() => query = value),
+                        decoration: InputDecoration(
+                          prefixIcon: const Icon(Icons.search),
+                          hintText: 'Search',
+                          suffixIcon: query.isEmpty
+                              ? null
+                              : IconButton(
+                                  tooltip: 'Clear',
+                                  icon: const Icon(Icons.close),
+                                  onPressed: () {
+                                    search.clear();
+                                    setState(() => query = '');
+                                  },
+                                ),
+                        ),
+                      ),
+                    ),
+                    SizedBox(
+                      height: 42,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        children: [
+                          for (final c in ['All', ...allCategories])
+                            Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(c),
+                                selected: category == c,
+                                onSelected: (_) => setState(() => category = c),
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 10, 20, 0),
+                      child: Row(
+                        children: [
+                          Text(
+                            '${entries.length} ${entries.length == 1 ? 'expense' : 'expenses'}',
+                            style: TextStyle(
+                              color: context.muted,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                          const Spacer(),
+                          MaskedText(
+                            FinanceCalculator.money(total),
+                            style: const TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Expanded(
+                      child: rows.isEmpty
+                          ? EmptyState(
+                              title: items.isEmpty
+                                  ? 'No expenses yet'
+                                  : 'No matches',
+                              icon: Icons.receipt_long_outlined,
+                            )
+                          : ListView.builder(
+                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+                              itemCount: rows.length,
+                              itemBuilder: (context, i) {
+                                final row = rows[i];
+                                if (row.entry == null) {
+                                  return DayHeader(
+                                    label: row.label!,
+                                    total: row.total,
+                                  );
+                                }
+                                return _tile(context, row.entry!);
+                              },
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+    );
+  }
+
+  Widget _tile(BuildContext context, ExpenseRecord entry) {
+    final hasNote = entry.description.isNotEmpty;
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Dismissible(
+        key: ValueKey('expense-${entry.id}'),
+        direction: DismissDirection.endToStart,
+        onDismissed: (_) => _delete(entry),
+        background: Container(
+          alignment: Alignment.centerRight,
+          padding: const EdgeInsets.only(right: 22),
+          decoration: BoxDecoration(
+            color: AppColors.negative,
+            borderRadius: BorderRadius.circular(18),
+          ),
+          child: const Icon(Icons.delete_outline, color: Colors.white),
+        ),
+        child: Card(
+          margin: EdgeInsets.zero,
+          clipBehavior: Clip.antiAlias,
+          child: ListTile(
+            onTap: () => edit(entry),
+            leading: CircleAvatar(
+              backgroundColor: context.accent.withValues(alpha: .12),
+              child: Icon(categoryIcon(entry.category), color: context.accent),
+            ),
+            title: Text(
+              hasNote ? entry.description : entry.category,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.w700),
+            ),
+            subtitle: hasNote ? Text(entry.category) : null,
+            trailing: MaskedText(
+              FinanceCalculator.money(entry.amount),
+              style: const TextStyle(fontWeight: FontWeight.w800),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

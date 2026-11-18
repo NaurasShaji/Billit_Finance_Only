@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
 import '../models/finance_models.dart';
@@ -6,6 +7,15 @@ class DatabaseService {
   DatabaseService._();
   static final instance = DatabaseService._();
   Database? _db;
+
+  /// Incremented after every write so open screens can refresh themselves.
+  static final ValueNotifier<int> revision = ValueNotifier<int>(0);
+  static void notifyChanged() => revision.value++;
+  Future<T> _write<T>(Future<T> Function(Database db) op) async {
+    final result = await op(await database);
+    notifyChanged();
+    return result;
+  }
 
   Future<Database> get database async {
     if (_db != null) return _db!;
@@ -76,18 +86,18 @@ class DatabaseService {
     await db.execute('CREATE INDEX idx_cash_session ON cash_transactions(session_id, date)');
   }
 
-  Future<int> addExpense(ExpenseRecord e) async => (await database).insert('expenses', e.toMap()..remove('id'));
-  Future<int> updateExpense(ExpenseRecord e) async => (await database).update('expenses', e.toMap()..remove('id'), where: 'id = ?', whereArgs: [e.id]);
-  Future<int> deleteExpense(int id) async => (await database).delete('expenses', where: 'id = ?', whereArgs: [id]);
+  Future<int> addExpense(ExpenseRecord e) => _write((db) => db.insert('expenses', e.toMap()..remove('id')));
+  Future<int> updateExpense(ExpenseRecord e) => _write((db) => db.update('expenses', e.toMap()..remove('id'), where: 'id = ?', whereArgs: [e.id]));
+  Future<int> deleteExpense(int id) => _write((db) => db.delete('expenses', where: 'id = ?', whereArgs: [id]));
   Future<List<ExpenseRecord>> expenses({DateTime? start, DateTime? end}) async {
     final rows = await (await database).query('expenses', where: start == null ? null : 'date >= ? AND date < ?', whereArgs: start == null ? null : [start.toIso8601String(), end!.toIso8601String()], orderBy: 'date DESC');
     return rows.map(ExpenseRecord.fromMap).toList();
   }
-  Future<int> addEmployee(EmployeeRecord e) async => (await database).insert('employees', e.toMap()..remove('id'));
-  Future<int> updateEmployee(EmployeeRecord e) async => (await database).update('employees', e.toMap()..remove('id'), where: 'id = ?', whereArgs: [e.id]);
-  Future<int> archiveEmployee(int id) async => (await database).update('employees', {'active': 0}, where: 'id = ?', whereArgs: [id]);
+  Future<int> addEmployee(EmployeeRecord e) => _write((db) => db.insert('employees', e.toMap()..remove('id')));
+  Future<int> updateEmployee(EmployeeRecord e) => _write((db) => db.update('employees', e.toMap()..remove('id'), where: 'id = ?', whereArgs: [e.id]));
+  Future<int> archiveEmployee(int id) => _write((db) => db.update('employees', {'active': 0}, where: 'id = ?', whereArgs: [id]));
   Future<List<EmployeeRecord>> employees() async => (await (await database).query('employees', where: 'active = 1', orderBy: 'name')).map(EmployeeRecord.fromMap).toList();
-  Future<int> addPayroll(PayrollPayment e) async => (await database).insert('payroll_payments', e.toMap()..remove('id'));
+  Future<int> addPayroll(PayrollPayment e) => _write((db) => db.insert('payroll_payments', e.toMap()..remove('id')));
   Future<List<PayrollPayment>> payroll({DateTime? start, DateTime? end}) async {
     final rows = await (await database).query('payroll_payments', where: start == null ? null : 'date >= ? AND date < ?', whereArgs: start == null ? null : [start.toIso8601String(), end!.toIso8601String()], orderBy: 'date DESC');
     return rows.map(PayrollPayment.fromMap).toList();
@@ -95,7 +105,7 @@ class DatabaseService {
 
   Future<int> addIncome(IncomeRecord entry, {List<IncomePayment> payments = const []}) async {
     final db = await database;
-    return db.transaction((txn) async {
+    final newId = await db.transaction((txn) async {
       final id = await txn.insert('income_entries', entry.toMap()..remove('id'));
       final paid = payments.fold<double>(0, (sum, p) => sum + p.amount);
       if (paid - entry.amount > 0.005) throw ArgumentError('Payments cannot exceed the sale total.');
@@ -104,6 +114,8 @@ class DatabaseService {
       }
       return id;
     });
+    notifyChanged();
+    return newId;
   }
   Future<List<IncomeRecord>> income({DateTime? start, DateTime? end}) async {
     final rows = await (await database).query('income_entries', where: start == null ? null : 'date >= ? AND date < ?', whereArgs: start == null ? null : [start.toIso8601String(), end!.toIso8601String()], orderBy: 'date DESC');
@@ -115,9 +127,14 @@ class DatabaseService {
     final result = await db.rawQuery('SELECT COALESCE(SUM(p.amount),0) total FROM income_payments p WHERE (? IS NULL OR p.date >= ?) AND (? IS NULL OR p.date < ?)', [start?.toIso8601String(), start?.toIso8601String(), end?.toIso8601String(), end?.toIso8601String()]);
     return (result.first['total'] as num).toDouble();
   }
-  Future<int> addCreditParty(CreditParty party) async => (await database).insert('credit_parties', party.toMap()..remove('id'));
+  /// Amount collected so far for each sale, keyed by income id.
+  Future<Map<int, double>> incomePaidTotals() async {
+    final rows = await (await database).rawQuery('SELECT income_id, COALESCE(SUM(amount),0) paid FROM income_payments GROUP BY income_id');
+    return {for (final row in rows) row['income_id'] as int: (row['paid'] as num).toDouble()};
+  }
+  Future<int> addCreditParty(CreditParty party) => _write((db) => db.insert('credit_parties', party.toMap()..remove('id')));
   Future<List<CreditParty>> creditParties({String? type}) async => (await (await database).query('credit_parties', where: type == null ? null : 'type = ?', whereArgs: type == null ? null : [type], orderBy: 'name')).map(CreditParty.fromMap).toList();
-  Future<int> addCreditTransaction(CreditTransaction entry) async => (await database).insert('credit_transactions', entry.toMap()..remove('id'));
+  Future<int> addCreditTransaction(CreditTransaction entry) => _write((db) => db.insert('credit_transactions', entry.toMap()..remove('id')));
   Future<List<CreditTransaction>> creditTransactions(int partyId) async => (await (await database).query('credit_transactions', where: 'party_id = ?', whereArgs: [partyId], orderBy: 'date DESC')).map(CreditTransaction.fromMap).toList();
   Future<List<Map<String, Object?>>> creditBalances() async {
     return (await (await database).rawQuery("""SELECT p.*, COALESCE(SUM(CASE
@@ -128,7 +145,7 @@ class DatabaseService {
       GROUP BY p.id ORDER BY p.name"""));
   }
 
-  Future<int> openCashSession(DateTime date, double opening) async => (await database).insert('cash_sessions', {'date': DateTime(date.year,date.month,date.day).toIso8601String(), 'opening_balance': opening, 'status': 'open'}, conflictAlgorithm: ConflictAlgorithm.abort);
+  Future<int> openCashSession(DateTime date, double opening) => _write((db) => db.insert('cash_sessions', {'date': DateTime(date.year,date.month,date.day).toIso8601String(), 'opening_balance': opening, 'status': 'open'}, conflictAlgorithm: ConflictAlgorithm.abort));
   Future<CashSession?> cashSession(DateTime date) async {
     final day = DateTime(date.year,date.month,date.day).toIso8601String();
     final rows = await (await database).query('cash_sessions', where: 'date = ?', whereArgs: [day], limit: 1);
@@ -137,7 +154,7 @@ class DatabaseService {
   Future<int> addCashTransaction(CashTransaction entry) async {
     final session = await cashSession(entry.date);
     if (session == null || session.status != 'open') throw StateError('Open the cash book for this date before adding transactions.');
-    return (await database).insert('cash_transactions', entry.toMap()..remove('id'));
+    return _write((db) => db.insert('cash_transactions', entry.toMap()..remove('id')));
   }
   Future<List<CashTransaction>> cashTransactions(int sessionId) async => (await (await database).query('cash_transactions', where: 'session_id = ?', whereArgs: [sessionId], orderBy: 'date')).map(CashTransaction.fromMap).toList();
   Future<Map<String, double>> cashBalances(int sessionId) async {
@@ -153,5 +170,6 @@ class DatabaseService {
     final expectedCash = opening + (balances['cash'] ?? 0);
     if (countedCash < 0 || expectedCash.isNaN || !countedCash.isFinite) throw ArgumentError('Invalid closing cash amount.');
     await db.update('cash_sessions', {'closing_balance': countedCash, 'status': 'closed'}, where: 'id = ?', whereArgs: [sessionId]);
+    notifyChanged();
   }
 }

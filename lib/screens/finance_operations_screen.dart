@@ -1,65 +1,967 @@
 import 'package:flutter/material.dart';
-import '../widgets/admin_settings_action.dart';
+import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
+
 import '../models/finance_models.dart';
 import '../services/database_service.dart';
 import '../services/finance_calculator.dart';
 import '../theme/app_theme.dart';
+import '../widgets/admin_settings_action.dart';
+import '../widgets/finance_ui.dart';
 import '../widgets/ui_kit.dart';
 import 'entry_form_screens.dart';
+
+String _cap(String value) {
+  final text = value.replaceAll('_', ' ');
+  return text.isEmpty ? text : text[0].toUpperCase() + text.substring(1);
+}
 
 class FinanceOperationsScreen extends StatelessWidget {
   const FinanceOperationsScreen({super.key});
   @override
-  Widget build(BuildContext context) => DefaultTabController(length: 3, child: Scaffold(
-    appBar: AppBar(title: const Text('Income & Accounts'), actions: const [AdminSettingsAction()], bottom: const TabBar(isScrollable: true, tabs: [Tab(text: 'Income'), Tab(text: 'Credit ledger'), Tab(text: 'Cash book')])),
-    body: const TabBarView(children: [_IncomeTab(), _CreditTab(), _CashTab()]),
-  ));
+  Widget build(BuildContext context) => DefaultTabController(
+    length: 3,
+    child: Scaffold(
+      appBar: AppBar(
+        title: const Text('Accounts'),
+        actions: const [AdminSettingsAction()],
+        bottom: const TabBar(
+          tabs: [
+            Tab(text: 'Income'),
+            Tab(text: 'Credit'),
+            Tab(text: 'Cash book'),
+          ],
+        ),
+      ),
+      body: const TabBarView(
+        children: [_IncomeTab(), _CreditTab(), _CashTab()],
+      ),
+    ),
+  );
 }
-class _IncomeTab extends StatefulWidget { const _IncomeTab(); @override State<_IncomeTab> createState() => _IncomeTabState(); }
+
+// ---------------------------------------------------------------- Income
+
+class _IncomeTab extends StatefulWidget {
+  const _IncomeTab();
+  @override
+  State<_IncomeTab> createState() => _IncomeTabState();
+}
+
 class _IncomeTabState extends State<_IncomeTab> {
-  List<IncomeRecord> rows=[]; double total=0, received=0; bool busy=true;
-  @override void initState(){super.initState();load();}
-  Future<void> load() async {final n=DateTime.now(),s=DateTime(n.year,n.month,1),e=DateTime(n.year,n.month+1,1);final r=await DatabaseService.instance.income(start:s,end:e);final p=await DatabaseService.instance.incomeCollected(start:s,end:e);if(mounted)setState(()=>{rows=r,total=r.fold(0,(v,x)=>v+x.amount),received=p,busy=false});}
-  Future<void> add() async {
-    final saved = await Navigator.of(context).push<bool>(MaterialPageRoute(
-      builder: (_) => const IncomeEntryPage(),
-    ));
-    if (saved == true) await load();
+  List<IncomeRecord> rows = [];
+  Map<int, double> paid = {};
+  double total = 0, received = 0;
+  bool busy = true;
+
+  @override
+  void initState() {
+    super.initState();
+    DatabaseService.revision.addListener(load);
+    load();
   }
 
-  @override Widget build(BuildContext context)=>busy?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
-    LayoutBuilder(builder:(context,box){final count=box.maxWidth>700?3:1;final w=(box.maxWidth-(count-1)*10)/count;return Wrap(spacing:10,runSpacing:10,children:[SizedBox(width:w,child:StatCard(title:'Sales this month',value:FinanceCalculator.money(total),icon:Icons.trending_up,color:AppColors.positive)),SizedBox(width:w,child:StatCard(title:'Collected',value:FinanceCalculator.money(received),icon:Icons.payments_outlined)),SizedBox(width:w,child:StatCard(title:'Outstanding',value:FinanceCalculator.money(total-received),icon:Icons.pending_actions,color:AppColors.warning))]);}),
-    const SizedBox(height:10),FilledButton.icon(onPressed:add,icon:const Icon(Icons.add),label:const Text('Add income')),
-    const SectionHeader('Income entries'),if(rows.isEmpty)const EmptyState(title:'No income entries',message:'Income entries for this month will appear here.',icon:Icons.trending_up),
-    ...rows.map((x)=>Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.receipt_long_outlined)),title:Text(x.description.isEmpty?'Sale':x.description,style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text(DateFormat('dd MMM yyyy').format(x.date)),trailing:Text(FinanceCalculator.money(x.amount),style:const TextStyle(fontWeight:FontWeight.w800)))))
-  ]));
+  @override
+  void dispose() {
+    DatabaseService.revision.removeListener(load);
+    super.dispose();
+  }
+
+  Future<void> load() async {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, 1);
+    final end = DateTime(now.year, now.month + 1, 1);
+    final db = DatabaseService.instance;
+    final r = await db.income(start: start, end: end);
+    final collected = await db.incomeCollected(start: start, end: end);
+    final paidTotals = await db.incomePaidTotals();
+    if (!mounted) return;
+    setState(() {
+      rows = r;
+      paid = paidTotals;
+      total = r.fold<double>(0, (v, x) => v + x.amount);
+      received = collected;
+      busy = false;
+    });
+  }
+
+  Future<void> add() async {
+    await Navigator.of(context)
+        .push<bool>(MaterialPageRoute(builder: (_) => const IncomeEntryPage()));
+    await load();
+  }
+
+  Widget _status(BuildContext context, IncomeRecord x) {
+    final collected = paid[x.id] ?? 0;
+    if (collected >= x.amount - 0.005) return StatusPill('Paid', context.good);
+    if (collected > 0) return StatusPill('Partial', context.caution);
+    return StatusPill('Due', context.bad);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (busy) return const Center(child: CircularProgressIndicator());
+    final groups = <String, List<IncomeRecord>>{};
+    for (final x in rows) {
+      groups.putIfAbsent(dayLabel(x.date), () => []).add(x);
+    }
+    return RefreshIndicator(
+      onRefresh: load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          LayoutBuilder(
+            builder: (context, box) {
+              final count = box.maxWidth > 700 ? 3 : 1;
+              final w = (box.maxWidth - (count - 1) * 10) / count;
+              final cards = [
+                StatCard(
+                  title: 'Sales this month',
+                  value: FinanceCalculator.money(total),
+                  icon: Icons.trending_up,
+                  color: AppColors.positive,
+                ),
+                StatCard(
+                  title: 'Collected',
+                  value: FinanceCalculator.money(received),
+                  icon: Icons.payments_outlined,
+                ),
+                StatCard(
+                  title: 'Outstanding',
+                  value: FinanceCalculator.money(total - received),
+                  icon: Icons.pending_actions,
+                  color: AppColors.warning,
+                ),
+              ];
+              return Wrap(
+                spacing: 10,
+                runSpacing: 10,
+                children: [for (final c in cards) SizedBox(width: w, child: c)],
+              );
+            },
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: add,
+            icon: const Icon(Icons.add),
+            label: const Text('Add sale'),
+          ),
+          if (rows.isEmpty)
+            const EmptyState(
+              title: 'No sales this month',
+              icon: Icons.trending_up,
+            ),
+          for (final g in groups.entries) ...[
+            DayHeader(
+              label: g.key,
+              total: g.value.fold<double>(0, (s, x) => s + x.amount),
+            ),
+            for (final x in g.value)
+              Card(
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: context.good.withValues(alpha: .12),
+                    child: Icon(Icons.south_west, color: context.good),
+                  ),
+                  title: Text(
+                    x.description.isEmpty ? 'Sale' : x.description,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  trailing: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      MaskedText(
+                        FinanceCalculator.money(x.amount),
+                        style: const TextStyle(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 3),
+                      _status(context, x),
+                    ],
+                  ),
+                ),
+              ),
+          ],
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
 }
-class _CreditTab extends StatefulWidget { const _CreditTab(); @override State<_CreditTab> createState()=>_CreditTabState(); }
+
+// ---------------------------------------------------------------- Credit
+
+class _CreditTab extends StatefulWidget {
+  const _CreditTab();
+  @override
+  State<_CreditTab> createState() => _CreditTabState();
+}
+
 class _CreditTabState extends State<_CreditTab> {
-  List<Map<String,Object?>> rows=[];bool busy=true;
-  @override void initState(){super.initState();load();}
-  Future<void> load()async{final x=await DatabaseService.instance.creditBalances();if(mounted)setState(()=>{rows=x,busy=false});}
-  Future<void> addParty()async{final n=TextEditingController(),p=TextEditingController();String type='customer';final ok=await showDialog<bool>(context:context,builder:(c)=>StatefulBuilder(builder:(c,u)=>AlertDialog(title:const Text('Add customer / supplier'),content:Column(mainAxisSize:MainAxisSize.min,children:[TextField(controller:n,decoration:const InputDecoration(labelText:'Name')),TextField(controller:p,decoration:const InputDecoration(labelText:'Phone')),DropdownButtonFormField<String>(value:type,items:const [DropdownMenuItem(value:'customer',child:Text('Customer')),DropdownMenuItem(value:'supplier',child:Text('Supplier'))],onChanged:(v)=>u(()=>type=v??'customer'))]),actions:[TextButton(onPressed:()=>Navigator.pop(c,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(c,true),child:const Text('Save'))])));if(ok==true&&n.text.trim().isNotEmpty){await DatabaseService.instance.addCreditParty(CreditParty(name:n.text.trim(),phone:p.text.trim(),type:type));await load();}n.dispose();p.dispose();}
-  Future<void> showParty(CreditParty party)async{final history=await DatabaseService.instance.creditTransactions(party.id!);if(!mounted)return;await showDialog<void>(context:context,builder:(ctx)=>AlertDialog(title:Text('${party.name} • ${party.type}'),content:SizedBox(width:420,child:history.isEmpty?const Text('No ledger entries yet.'):SizedBox(height:300,child:ListView(children:history.map((t)=>ListTile(title:Text(t.type.replaceAll('_',' ')),subtitle:Text(DateFormat('dd MMM yyyy').format(t.date)+(t.dueDate==null?'':' • Due ${DateFormat('dd MMM yyyy').format(t.dueDate!)}')+(t.note.isEmpty?'':' • ${t.note}')),trailing:Text(FinanceCalculator.money(t.amount)))).toList()))),actions:[TextButton(onPressed:()=>Navigator.pop(ctx),child:const Text('Close')),FilledButton(onPressed:(){Navigator.pop(ctx);addEntry(party);},child:const Text('Add entry'))]));}
-  Future<void> addEntry(CreditParty party)async{final a=TextEditingController(),note=TextEditingController();final isCustomer=party.type=='customer';String type=isCustomer?'credit_sale':'credit_purchase';DateTime due=DateTime.now().add(const Duration(days:7));final ok=await showDialog<bool>(context:context,builder:(ctx)=>StatefulBuilder(builder:(ctx,u)=>AlertDialog(title:Text('Record with ${party.name}'),content:Column(mainAxisSize:MainAxisSize.min,children:[DropdownButtonFormField<String>(value:type,items:(isCustomer?['credit_sale','payment_received','adjustment']:['credit_purchase','payment_made','adjustment']).map((v)=>DropdownMenuItem(value:v,child:Text(v.replaceAll('_',' ')))).toList(),onChanged:(v)=>u(()=>type=v??type)),TextField(controller:a,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Amount (₹)')),TextField(controller:note,decoration:const InputDecoration(labelText:'Note')),if(type=='credit_sale'||type=='credit_purchase')TextButton.icon(onPressed:()async{final d=await showDatePicker(context:ctx,initialDate:due,firstDate:DateTime(2000),lastDate:DateTime(2100));if(d!=null)u(()=>due=d);},icon:const Icon(Icons.event),label:Text('Due date: ${DateFormat('dd MMM yyyy').format(due)}'))]),actions:[TextButton(onPressed:()=>Navigator.pop(ctx,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(ctx,true),child:const Text('Save'))])));final value=double.tryParse(a.text);if(ok==true&&value!=null&&value>0){await DatabaseService.instance.addCreditTransaction(CreditTransaction(partyId:party.id!,date:DateTime.now(),type:type,amount:value,dueDate:(type=='credit_sale'||type=='credit_purchase')?due:null,note:note.text.trim()));await load();}a.dispose();note.dispose();}
-  @override Widget build(BuildContext context)=>busy?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[FilledButton.icon(onPressed:addParty,icon:const Icon(Icons.person_add),label:const Text('Add party')),const SectionHeader('Credit parties'),if(rows.isEmpty)const EmptyState(title:'No credit parties',message:'Add a customer or supplier to start a ledger.',icon:Icons.people_outline),...rows.map((r){final p=CreditParty.fromMap(r);final b=(r['balance'] as num).toDouble();return Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.person_outline)),title:Text(p.name,style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text(p.type=='customer'?'Customer receivable':'Supplier payable'),trailing:Text(FinanceCalculator.money(b.abs()),style:const TextStyle(fontWeight:FontWeight.w800)),onTap:()=>showParty(p)));})]));
+  List<Map<String, Object?>> rows = [];
+  bool busy = true;
+  String filter = 'all';
+  String query = '';
+
+  @override
+  void initState() {
+    super.initState();
+    DatabaseService.revision.addListener(load);
+    load();
+  }
+
+  @override
+  void dispose() {
+    DatabaseService.revision.removeListener(load);
+    super.dispose();
+  }
+
+  Future<void> load() async {
+    final x = await DatabaseService.instance.creditBalances();
+    if (!mounted) return;
+    setState(() {
+      rows = x;
+      busy = false;
+    });
+  }
+
+  /// Positive: the party owes you. Negative: you owe the party.
+  double _owedToYou(Map<String, Object?> row) {
+    final balance = (row['balance'] as num).toDouble();
+    return row['type'] == 'customer' ? balance : -balance;
+  }
+
+  Future<void> addParty() async {
+    final party = await showDialog<CreditParty>(
+      context: context,
+      builder: (_) => const _PartyDialog(),
+    );
+    if (party == null) return;
+    await DatabaseService.instance.addCreditParty(party);
+    await load();
+  }
+
+  Future<void> showParty(CreditParty party) async {
+    final history = await DatabaseService.instance.creditTransactions(
+      party.id!,
+    );
+    if (!mounted) return;
+    final addNew = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(party.name),
+        content: SizedBox(
+          width: 420,
+          child: history.isEmpty
+              ? const Text('No entries yet')
+              : SizedBox(
+                  height: 320,
+                  child: ListView(
+                    children: [
+                      for (final t in history)
+                        ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(_cap(t.type)),
+                          subtitle: Text(
+                            DateFormat('dd MMM yyyy').format(t.date) +
+                                (t.dueDate == null
+                                    ? ''
+                                    : ' • Due ${DateFormat('dd MMM yyyy').format(t.dueDate!)}') +
+                                (t.note.isEmpty ? '' : ' • ${t.note}'),
+                          ),
+                          trailing: Text(
+                            FinanceCalculator.money(t.amount),
+                            style: const TextStyle(fontWeight: FontWeight.w700),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Close'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Add entry'),
+          ),
+        ],
+      ),
+    );
+    if (addNew == true && mounted) await addEntry(party);
+  }
+
+  Future<void> addEntry(CreditParty party) async {
+    final entry = await showDialog<CreditTransaction>(
+      context: context,
+      builder: (_) => _EntryDialog(party: party),
+    );
+    if (entry == null) return;
+    await DatabaseService.instance.addCreditTransaction(entry);
+    HapticFeedback.lightImpact();
+    await load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (busy) return const Center(child: CircularProgressIndicator());
+    var toReceive = 0.0, toPay = 0.0;
+    for (final r in rows) {
+      final v = _owedToYou(r);
+      if (v > 0) toReceive += v;
+      if (v < 0) toPay += -v;
+    }
+    final q = query.trim().toLowerCase();
+    final shown = rows.where((r) {
+      final type = r['type'] as String;
+      final matchesType =
+          filter == 'all' ||
+          (filter == 'customers' && type == 'customer') ||
+          (filter == 'suppliers' && type == 'supplier');
+      return matchesType &&
+          (q.isEmpty || (r['name'] as String).toLowerCase().contains(q));
+    }).toList();
+    return RefreshIndicator(
+      onRefresh: load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: StatCard(
+                  title: 'To receive',
+                  value: FinanceCalculator.money(toReceive),
+                  icon: Icons.south_west,
+                  color: AppColors.positive,
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: StatCard(
+                  title: 'To pay',
+                  value: FinanceCalculator.money(toPay),
+                  icon: Icons.north_east,
+                  color: AppColors.warning,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            onPressed: addParty,
+            icon: const Icon(Icons.person_add),
+            label: const Text('Add party'),
+          ),
+          const SizedBox(height: 12),
+          if (rows.length > 4) ...[
+            TextField(
+              onChanged: (v) => setState(() => query = v),
+              decoration: const InputDecoration(
+                prefixIcon: Icon(Icons.search),
+                hintText: 'Search',
+              ),
+            ),
+            const SizedBox(height: 10),
+          ],
+          SegmentedButton<String>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: 'all', label: Text('All')),
+              ButtonSegment(value: 'customers', label: Text('Customers')),
+              ButtonSegment(value: 'suppliers', label: Text('Suppliers')),
+            ],
+            selected: {filter},
+            onSelectionChanged: (s) => setState(() => filter = s.first),
+          ),
+          if (shown.isEmpty)
+            const EmptyState(title: 'No parties', icon: Icons.people_outline),
+          const SizedBox(height: 6),
+          for (final r in shown) _partyTile(context, r),
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+
+  Widget _partyTile(BuildContext context, Map<String, Object?> r) {
+    final party = CreditParty.fromMap(r);
+    final owed = _owedToYou(r);
+    final settled = owed.abs() < 0.005;
+    final color = settled
+        ? context.muted
+        : (owed > 0 ? context.good : context.caution);
+    return Card(
+      child: ListTile(
+        onTap: () => showParty(party),
+        leading: CircleAvatar(
+          backgroundColor: context.accent.withValues(alpha: .12),
+          child: Text(
+            party.name.isEmpty ? '?' : party.name[0].toUpperCase(),
+            style: TextStyle(
+              color: context.accent,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        title: Text(
+          party.name,
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(party.type == 'customer' ? 'Customer' : 'Supplier'),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            MaskedText(
+              FinanceCalculator.money(owed.abs()),
+              style: TextStyle(fontWeight: FontWeight.w800, color: color),
+            ),
+            Text(
+              settled ? 'Settled' : (owed > 0 ? 'Owes you' : 'You owe'),
+              style: TextStyle(
+                color: color,
+                fontSize: 11.5,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
-class _CashTab extends StatefulWidget { const _CashTab(); @override State<_CashTab> createState()=>_CashTabState(); }
+
+class _PartyDialog extends StatefulWidget {
+  const _PartyDialog();
+  @override
+  State<_PartyDialog> createState() => _PartyDialogState();
+}
+
+class _PartyDialogState extends State<_PartyDialog> {
+  final _name = TextEditingController();
+  final _phone = TextEditingController();
+  String _type = 'customer';
+  String? _error;
+
+  @override
+  void dispose() {
+    _name.dispose();
+    _phone.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    if (_name.text.trim().isEmpty) {
+      setState(() => _error = 'Enter a name');
+      return;
+    }
+    Navigator.pop(
+      context,
+      CreditParty(
+        name: _name.text.trim(),
+        phone: _phone.text.trim(),
+        type: _type,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Add party'),
+    content: SizedBox(
+      width: 380,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SegmentedButton<String>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: 'customer', label: Text('Customer')),
+              ButtonSegment(value: 'supplier', label: Text('Supplier')),
+            ],
+            selected: {_type},
+            onSelectionChanged: (s) => setState(() => _type = s.first),
+          ),
+          const SizedBox(height: 14),
+          TextField(
+            controller: _name,
+            autofocus: true,
+            textCapitalization: TextCapitalization.words,
+            textInputAction: TextInputAction.next,
+            decoration: InputDecoration(labelText: 'Name', errorText: _error),
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _phone,
+            keyboardType: TextInputType.phone,
+            decoration: const InputDecoration(labelText: 'Phone'),
+            onSubmitted: (_) => _save(),
+          ),
+        ],
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _save, child: const Text('Save')),
+    ],
+  );
+}
+
+class _EntryDialog extends StatefulWidget {
+  const _EntryDialog({required this.party});
+  final CreditParty party;
+  @override
+  State<_EntryDialog> createState() => _EntryDialogState();
+}
+
+class _EntryDialogState extends State<_EntryDialog> {
+  final _amount = TextEditingController();
+  final _note = TextEditingController();
+  late String _type = widget.party.type == 'customer'
+      ? 'credit_sale'
+      : 'credit_purchase';
+  DateTime _due = DateTime.now().add(const Duration(days: 7));
+  String? _error;
+
+  List<String> get _types => widget.party.type == 'customer'
+      ? ['credit_sale', 'payment_received', 'adjustment']
+      : ['credit_purchase', 'payment_made', 'adjustment'];
+  bool get _isCredit => _type == 'credit_sale' || _type == 'credit_purchase';
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final value = double.tryParse(_amount.text.trim());
+    if (value == null || value <= 0) {
+      setState(() => _error = 'Enter a valid amount');
+      return;
+    }
+    Navigator.pop(
+      context,
+      CreditTransaction(
+        partyId: widget.party.id!,
+        date: DateTime.now(),
+        type: _type,
+        amount: value,
+        dueDate: _isCredit ? _due : null,
+        note: _note.text.trim(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: Text(widget.party.name),
+    content: SizedBox(
+      width: 380,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final t in _types)
+                  ChoiceChip(
+                    label: Text(_cap(t)),
+                    selected: _type == t,
+                    onSelected: (_) => setState(() => _type = t),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _amount,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Amount',
+                prefixText: '₹ ',
+                errorText: _error,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _note,
+              decoration: const InputDecoration(labelText: 'Note'),
+              onSubmitted: (_) => _save(),
+            ),
+            if (_isCredit)
+              TextButton.icon(
+                onPressed: () async {
+                  final d = await showDatePicker(
+                    context: context,
+                    initialDate: _due,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
+                  if (d != null) setState(() => _due = d);
+                },
+                icon: const Icon(Icons.event),
+                label: Text('Due ${DateFormat('dd MMM yyyy').format(_due)}'),
+              ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _save, child: const Text('Save')),
+    ],
+  );
+}
+
+// ---------------------------------------------------------------- Cash book
+
+class _CashTab extends StatefulWidget {
+  const _CashTab();
+  @override
+  State<_CashTab> createState() => _CashTabState();
+}
+
 class _CashTabState extends State<_CashTab> {
-  CashSession? session;List<CashTransaction> rows=[];Map<String,double> net={};bool busy=true;
-  @override void initState(){super.initState();load();}
-  Future<void> load()async{final s=await DatabaseService.instance.cashSession(DateTime.now());if(s==null){if(mounted)setState(()=>{session=null,rows=[],net={},busy=false});return;}final r=await DatabaseService.instance.cashTransactions(s.id!);final b=await DatabaseService.instance.cashBalances(s.id!);if(mounted)setState(()=>{session=s,rows=r,net=b,busy=false});}
-  Future<void> open()async{final c=TextEditingController(text:'0');final ok=await showDialog<bool>(context:context,builder:(x)=>AlertDialog(title:const Text('Opening cash'),content:TextField(controller:c,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Opening cash (₹)')),actions:[TextButton(onPressed:()=>Navigator.pop(x,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(x,true),child:const Text('Open day'))]));final v=double.tryParse(c.text);if(ok==true&&v!=null&&v>=0){await DatabaseService.instance.openCashSession(DateTime.now(),v);await load();}c.dispose();}
-  Future<void> movement()async{final a=TextEditingController(),n=TextEditingController();String d='in',m='cash';final ok=await showDialog<bool>(context:context,builder:(x)=>StatefulBuilder(builder:(x,u)=>AlertDialog(title:const Text('Cash book movement'),content:Column(mainAxisSize:MainAxisSize.min,children:[DropdownButtonFormField<String>(value:d,items:const [DropdownMenuItem(value:'in',child:Text('Money in')),DropdownMenuItem(value:'out',child:Text('Money out'))],onChanged:(v)=>u(()=>d=v??'in')),DropdownButtonFormField<String>(value:m,items:const ['cash','upi','card','bank'].map((v)=>DropdownMenuItem(value:v,child:Text(v.toUpperCase()))).toList(),onChanged:(v)=>u(()=>m=v??'cash')),TextField(controller:a,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Amount (₹)')),TextField(controller:n,decoration:const InputDecoration(labelText:'Description'))]),actions:[TextButton(onPressed:()=>Navigator.pop(x,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(x,true),child:const Text('Save'))])));final v=double.tryParse(a.text);if(ok==true&&v!=null&&v>0){await DatabaseService.instance.addCashTransaction(CashTransaction(sessionId:session!.id!,date:DateTime.now(),direction:d,method:m,amount:v,note:n.text.trim()));await load();}a.dispose();n.dispose();}
-  Future<void> close()async{final expected=session!.openingBalance+(net['cash']??0);final c=TextEditingController(text:expected.toStringAsFixed(2));final ok=await showDialog<bool>(context:context,builder:(x)=>AlertDialog(title:const Text('Close day'),content:TextField(controller:c,keyboardType:const TextInputType.numberWithOptions(decimal:true),decoration:const InputDecoration(labelText:'Physical cash counted (₹)')),actions:[TextButton(onPressed:()=>Navigator.pop(x,false),child:const Text('Cancel')),FilledButton(onPressed:()=>Navigator.pop(x,true),child:const Text('Close'))]));final v=double.tryParse(c.text);if(ok==true&&v!=null&&v>=0){await DatabaseService.instance.closeCashSession(session!.id!,v);await load();}c.dispose();}
-  @override Widget build(BuildContext context)=>busy?const Center(child:CircularProgressIndicator()):RefreshIndicator(onRefresh:load,child:ListView(padding:const EdgeInsets.all(16),children:[
-    if(session==null)FilledButton.icon(onPressed:open,icon:const Icon(Icons.lock_open),label:const Text('Open today’s cash book')) else ...[
-      LayoutBuilder(builder:(context,box){final count=box.maxWidth>700?3:2;final w=(box.maxWidth-(count-1)*10)/count;final metrics=<Widget>[StatCard(title:'Opening cash',value:FinanceCalculator.money(session!.openingBalance),icon:Icons.lock_open),...['cash','upi','card','bank'].map((m)=>StatCard(title:'${m.toUpperCase()} movement',value:FinanceCalculator.money(net[m]??0),icon:Icons.account_balance_wallet_outlined)),StatCard(title:'Expected cash',value:FinanceCalculator.money(session!.openingBalance+(net['cash']??0)),icon:Icons.payments_outlined)];return Wrap(spacing:10,runSpacing:10,children:metrics.map((e)=>SizedBox(width:w,child:e)).toList());}),
-      if(session!.status=='open')Wrap(spacing:8,children:[FilledButton.icon(onPressed:movement,icon:const Icon(Icons.add),label:const Text('Add movement')),OutlinedButton.icon(onPressed:close,icon:const Icon(Icons.lock),label:const Text('Close day'))]),
-      if(session!.status=='closed')StatCard(title:'Counted closing cash',value:FinanceCalculator.money(session!.closingBalance??0)),
-      if(session!.status=='closed')StatCard(title:'Cash variance',value:FinanceCalculator.money((session!.closingBalance??0)-(session!.openingBalance+(net['cash']??0))),color:AppColors.warning),
-      const SectionHeader('Cash movements'),if(rows.isEmpty)const EmptyState(title:'No cash movements recorded',icon:Icons.payments_outlined),...rows.map((r)=>Card(child:ListTile(leading:CircleAvatar(child:Icon(r.direction=='in'?Icons.south_west:Icons.north_east)),title:Text(r.note.isEmpty?r.method.toUpperCase():r.note),subtitle:Text('${r.direction.toUpperCase()} • ${r.method.toUpperCase()}'),trailing:Text(FinanceCalculator.money(r.amount),style:const TextStyle(fontWeight:FontWeight.w800)))))
-    ]
-  ]));
+  CashSession? session;
+  List<CashTransaction> rows = [];
+  Map<String, double> net = {};
+  bool busy = true;
+
+  @override
+  void initState() {
+    super.initState();
+    DatabaseService.revision.addListener(load);
+    load();
+  }
+
+  @override
+  void dispose() {
+    DatabaseService.revision.removeListener(load);
+    super.dispose();
+  }
+
+  Future<void> load() async {
+    final db = DatabaseService.instance;
+    final s = await db.cashSession(DateTime.now());
+    if (s == null) {
+      if (mounted) {
+        setState(() {
+          session = null;
+          rows = [];
+          net = {};
+          busy = false;
+        });
+      }
+      return;
+    }
+    final r = await db.cashTransactions(s.id!);
+    final b = await db.cashBalances(s.id!);
+    if (!mounted) return;
+    setState(() {
+      session = s;
+      rows = r;
+      net = b;
+      busy = false;
+    });
+  }
+
+  double get expectedCash =>
+      (session?.openingBalance ?? 0) + (net['cash'] ?? 0);
+
+  Future<void> open() async {
+    final v = await showAmountDialog(
+      context,
+      title: 'Opening cash',
+      label: 'Cash in drawer',
+      allowZero: true,
+      confirmLabel: 'Open day',
+    );
+    if (v == null) return;
+    await DatabaseService.instance.openCashSession(DateTime.now(), v);
+    await load();
+  }
+
+  Future<void> movement() async {
+    final entry = await showDialog<CashTransaction>(
+      context: context,
+      builder: (_) => _MovementDialog(sessionId: session!.id!),
+    );
+    if (entry == null) return;
+    await DatabaseService.instance.addCashTransaction(entry);
+    HapticFeedback.lightImpact();
+    await load();
+  }
+
+  Future<void> close() async {
+    final v = await showAmountDialog(
+      context,
+      title: 'Close day',
+      label: 'Cash counted',
+      initial: expectedCash,
+      allowZero: true,
+      confirmLabel: 'Close',
+    );
+    if (v == null) return;
+    await DatabaseService.instance.closeCashSession(session!.id!, v);
+    await load();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (busy) return const Center(child: CircularProgressIndicator());
+    final s = session;
+    return RefreshIndicator(
+      onRefresh: load,
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          if (s == null)
+            FilledButton.icon(
+              onPressed: open,
+              icon: const Icon(Icons.lock_open),
+              label: const Text('Open today’s cash book'),
+            )
+          else ...[
+            LayoutBuilder(
+              builder: (context, box) {
+                final count = box.maxWidth > 700 ? 3 : 2;
+                final w = (box.maxWidth - (count - 1) * 10) / count;
+                final tiles = <Widget>[
+                  StatCard(
+                    title: 'Opening cash',
+                    value: FinanceCalculator.money(s.openingBalance),
+                    icon: Icons.lock_open,
+                  ),
+                  StatCard(
+                    title: 'Expected cash',
+                    value: FinanceCalculator.money(expectedCash),
+                    icon: Icons.payments_outlined,
+                    color: AppColors.positive,
+                  ),
+                  for (final m in ['cash', 'upi', 'card', 'bank'])
+                    StatCard(
+                      title: '${m.toUpperCase()} net',
+                      value: FinanceCalculator.money(net[m] ?? 0),
+                      icon: Icons.account_balance_wallet_outlined,
+                    ),
+                  if (s.status == 'closed') ...[
+                    StatCard(
+                      title: 'Counted cash',
+                      value: FinanceCalculator.money(s.closingBalance ?? 0),
+                      icon: Icons.fact_check_outlined,
+                    ),
+                    StatCard(
+                      title: 'Variance',
+                      value: FinanceCalculator.money(
+                        (s.closingBalance ?? 0) - expectedCash,
+                      ),
+                      icon: Icons.balance,
+                      color: AppColors.warning,
+                    ),
+                  ],
+                ];
+                return Wrap(
+                  spacing: 10,
+                  runSpacing: 10,
+                  children: [
+                    for (final t in tiles) SizedBox(width: w, child: t),
+                  ],
+                );
+              },
+            ),
+            if (s.status == 'open') ...[
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: movement,
+                      icon: const Icon(Icons.add),
+                      label: const Text('Add movement'),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: close,
+                      icon: const Icon(Icons.lock_outline),
+                      label: const Text('Close day'),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+            const SectionHeader('Movements'),
+            if (rows.isEmpty)
+              const EmptyState(
+                title: 'No movements yet',
+                icon: Icons.payments_outlined,
+              ),
+            for (final r in rows)
+              Card(
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor:
+                        (r.direction == 'in' ? context.good : context.caution)
+                            .withValues(alpha: .14),
+                    child: Icon(
+                      r.direction == 'in' ? Icons.south_west : Icons.north_east,
+                      color: r.direction == 'in'
+                          ? context.good
+                          : context.caution,
+                    ),
+                  ),
+                  title: Text(
+                    r.note.isEmpty ? r.method.toUpperCase() : r.note,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
+                  subtitle: Text(
+                    '${r.direction == 'in' ? 'In' : 'Out'} • ${r.method.toUpperCase()}',
+                  ),
+                  trailing: MaskedText(
+                    '${r.direction == 'in' ? '+' : '−'}${FinanceCalculator.money(r.amount)}',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      color: r.direction == 'in' ? context.good : context.ink,
+                    ),
+                  ),
+                ),
+              ),
+          ],
+          const SizedBox(height: 24),
+        ],
+      ),
+    );
+  }
+}
+
+class _MovementDialog extends StatefulWidget {
+  const _MovementDialog({required this.sessionId});
+  final int sessionId;
+  @override
+  State<_MovementDialog> createState() => _MovementDialogState();
+}
+
+class _MovementDialogState extends State<_MovementDialog> {
+  final _amount = TextEditingController();
+  final _note = TextEditingController();
+  String _direction = 'in';
+  String _method = 'cash';
+  String? _error;
+
+  @override
+  void dispose() {
+    _amount.dispose();
+    _note.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    final value = double.tryParse(_amount.text.trim());
+    if (value == null || value <= 0) {
+      setState(() => _error = 'Enter a valid amount');
+      return;
+    }
+    Navigator.pop(
+      context,
+      CashTransaction(
+        sessionId: widget.sessionId,
+        date: DateTime.now(),
+        direction: _direction,
+        method: _method,
+        amount: value,
+        note: _note.text.trim(),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+    title: const Text('Cash movement'),
+    content: SizedBox(
+      width: 380,
+      child: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SegmentedButton<String>(
+              showSelectedIcon: false,
+              segments: const [
+                ButtonSegment(
+                  value: 'in',
+                  label: Text('Money in'),
+                  icon: Icon(Icons.south_west),
+                ),
+                ButtonSegment(
+                  value: 'out',
+                  label: Text('Money out'),
+                  icon: Icon(Icons.north_east),
+                ),
+              ],
+              selected: {_direction},
+              onSelectionChanged: (s) => setState(() => _direction = s.first),
+            ),
+            const SizedBox(height: 14),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final m in ['cash', 'upi', 'card', 'bank'])
+                  ChoiceChip(
+                    label: Text(m.toUpperCase()),
+                    selected: _method == m,
+                    onSelected: (_) => setState(() => _method = m),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _amount,
+              autofocus: true,
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              decoration: InputDecoration(
+                labelText: 'Amount',
+                prefixText: '₹ ',
+                errorText: _error,
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _note,
+              decoration: const InputDecoration(labelText: 'Description'),
+              onSubmitted: (_) => _save(),
+            ),
+          ],
+        ),
+      ),
+    ),
+    actions: [
+      TextButton(
+        onPressed: () => Navigator.pop(context),
+        child: const Text('Cancel'),
+      ),
+      FilledButton(onPressed: _save, child: const Text('Save')),
+    ],
+  );
 }
