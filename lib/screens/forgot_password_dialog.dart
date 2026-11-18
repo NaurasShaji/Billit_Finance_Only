@@ -49,14 +49,12 @@ class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
   }
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Recover admin password'),
+    title: const Text('Reset password'),
     content: SizedBox(width: 440, child: SingleChildScrollView(child: _loading
       ? const Center(child: CircularProgressIndicator())
       : _questionIds.isEmpty
-        ? const Text('Password recovery has not been configured. Ask the administrator to sign in and set up security questions in Settings. If the password is lost before setup, local app data must be reset.')
+        ? const Text('Password recovery is not set up.')
         : Column(mainAxisSize: MainAxisSize.min, children: [
-            Text(_questionIds.length == 1 ? 'Answer your security question to set a new password.' : 'Answer your previously configured security questions to set a new password.'),
-            const SizedBox(height: 12),
             for (final id in _questionIds) ...[
               Align(alignment: Alignment.centerLeft, child: Text(AdminAuthService.securityQuestions[id] ?? 'Security question', style: Theme.of(context).textTheme.labelLarge)),
               const SizedBox(height: 6),
