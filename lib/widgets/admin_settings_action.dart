@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/admin_auth_service.dart';
+import '../theme/app_theme.dart';
 
 class AdminSettingsAction extends StatelessWidget {
   const AdminSettingsAction({super.key});
@@ -15,17 +16,35 @@ class _AdminSettingsDialog extends StatelessWidget {
   const _AdminSettingsDialog();
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Admin settings'),
-    content: Column(mainAxisSize: MainAxisSize.min, children: [
-      ListTile(leading: const Icon(Icons.lock_outline), title: const Text('Change password'), onTap: () {
-        Navigator.pop(context);
-        showDialog<void>(context: context, builder: (_) => const _ChangeAdminPasswordDialog());
-      }),
-      ListTile(leading: const Icon(Icons.quiz_outlined), title: const Text('Security questions'), subtitle: const Text('Set up or update password recovery'), onTap: () {
-        Navigator.pop(context);
-        showDialog<void>(context: context, builder: (_) => const _SecurityQuestionsDialog());
-      }),
-    ]),
+    title: const Text('Settings'),
+    content: SizedBox(
+      width: 380,
+      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Padding(padding: EdgeInsets.fromLTRB(4, 0, 4, 8), child: Text('Appearance', style: TextStyle(fontWeight: FontWeight.w700))),
+        ListenableBuilder(
+          listenable: ThemeController.instance,
+          builder: (context, _) => SegmentedButton<ThemeMode>(
+            showSelectedIcon: false,
+            segments: const [
+              ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto_outlined), label: Text('Auto')),
+              ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined), label: Text('Light')),
+              ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined), label: Text('Dark')),
+            ],
+            selected: {ThemeController.instance.mode},
+            onSelectionChanged: (value) => ThemeController.instance.setMode(value.first),
+          ),
+        ),
+        const SizedBox(height: 8),
+        ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 4), leading: const Icon(Icons.lock_outline), title: const Text('Change password'), onTap: () {
+          Navigator.pop(context);
+          showDialog<void>(context: context, builder: (_) => const _ChangeAdminPasswordDialog());
+        }),
+        ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 4), leading: const Icon(Icons.quiz_outlined), title: const Text('Recovery question'), onTap: () {
+          Navigator.pop(context);
+          showDialog<void>(context: context, builder: (_) => const _SecurityQuestionsDialog());
+        }),
+      ]),
+    ),
     actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
   );
 }
@@ -49,17 +68,17 @@ class _ChangeAdminPasswordDialogState extends State<_ChangeAdminPasswordDialog> 
       await AdminAuthService.instance.changePassword(_current.text, _next.text);
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Admin password changed successfully.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Password changed.')));
     } catch (e) { if (mounted) setState(() => _error = e.toString().replaceFirst('Exception: ', '')); }
     finally { if (mounted) setState(() => _saving = false); }
   }
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Change admin password'),
+    title: const Text('Change password'),
     content: SizedBox(width: 420, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
       TextField(controller: _current, obscureText: _obscure, decoration: const InputDecoration(labelText: 'Current password')),
       const SizedBox(height: 12),
-      TextField(controller: _next, obscureText: _obscure, decoration: const InputDecoration(labelText: 'New password', helperText: 'Use at least 8 characters')),
+      TextField(controller: _next, obscureText: _obscure, decoration: const InputDecoration(labelText: 'New password')),
       const SizedBox(height: 12),
       TextField(controller: _confirm, obscureText: _obscure, decoration: const InputDecoration(labelText: 'Confirm new password')),
       Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => setState(() => _obscure = !_obscure), icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined), label: Text(_obscure ? 'Show passwords' : 'Hide passwords'))),
@@ -90,16 +109,14 @@ class _SecurityQuestionsDialogState extends State<_SecurityQuestionsDialog> {
       await AdminAuthService.instance.saveRecoveryAnswers(_current.text, {_selected!: _answer.text});
       if (!mounted) return;
       Navigator.pop(context);
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Single password recovery question saved.')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Recovery question saved.')));
     } catch (e) { if (mounted) setState(() => _error = e.toString().replaceFirst('Exception: ', '')); }
     finally { if (mounted) setState(() => _saving = false); }
   }
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Set up password recovery'),
+    title: const Text('Recovery question'),
     content: SizedBox(width: 440, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      const Text('Choose one security question. You will need its answer to reset the admin password. Answers are stored as salted hashes.'),
-      const SizedBox(height: 16),
       DropdownButtonFormField<String>(
         value: _selected,
         isExpanded: true,
@@ -110,7 +127,7 @@ class _SecurityQuestionsDialogState extends State<_SecurityQuestionsDialog> {
       const SizedBox(height: 12),
       TextField(controller: _answer, obscureText: true, decoration: const InputDecoration(labelText: 'Answer')),
       const SizedBox(height: 12),
-      TextField(controller: _current, obscureText: true, decoration: const InputDecoration(labelText: 'Current admin password')),
+      TextField(controller: _current, obscureText: true, decoration: const InputDecoration(labelText: 'Current password')),
       if (_error != null) Align(alignment: Alignment.centerLeft, child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
     ]))),
     actions: [TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')), FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save question'))],
