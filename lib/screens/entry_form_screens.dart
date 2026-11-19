@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:file_picker/file_picker.dart';
@@ -49,8 +50,9 @@ class _IncomeEntryPageState extends State<IncomeEntryPage> {
   }
 
   Future<void> _pickReceipt() async {
-    final result = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false);
-    if (result?.files.single.path != null) setState(() => _receiptPath = result!.files.single.path);
+    final result = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false, withData: true);
+    final bytes = result?.files.single.bytes;
+    if (bytes != null) setState(() => _receiptPath = 'base64:${base64Encode(bytes)}');
   }
 
   Future<void> _save() async {
@@ -156,6 +158,8 @@ class _IncomeEntryPageState extends State<IncomeEntryPage> {
                       icon: const Icon(Icons.photo_camera_back_outlined),
                       label: Text(_receiptPath == null ? 'Attach receipt photo' : 'Change receipt photo'),
                     ),
+                    if (_receiptPath != null && _receiptPath!.startsWith('base64:'))
+                      ClipRRect(borderRadius: BorderRadius.circular(12), child: Image.memory(base64Decode(_receiptPath!.substring(7)), height: 180, width: double.infinity, fit: BoxFit.contain)),
                     if (_receiptPath != null)
                       ListTile(
                         contentPadding: EdgeInsets.zero,
