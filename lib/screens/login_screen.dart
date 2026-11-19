@@ -15,7 +15,10 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _password = TextEditingController();
   final _confirm = TextEditingController();
+  final _newPassword = TextEditingController();
   bool configured = false;
+  bool mustChange = false;
+  bool initialChange = false;
   bool loading = true;
   bool obscure = true;
   bool busy = false;
@@ -29,9 +32,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _load() async {
     final value = await AdminAuthService.instance.isConfigured;
+    final forceChange = await AdminAuthService.instance.mustChangePassword;
     if (mounted) {
       setState(() {
         configured = value;
+        mustChange = forceChange;
         loading = false;
       });
     }
@@ -40,36 +45,61 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _submit() async {
     if (busy) return;
     setState(() => error = null);
-    if (!configured) {
-      if (_password.text.length < 8) {
-        setState(() => error = 'Use at least 8 characters.');
+
+    if (initialChange) {
+      if (_newPassword.text.length < 12) {
+        setState(() => error = 'Use at least 12 characters for the new password.');
         return;
       }
-      if (_password.text != _confirm.text) {
-        setState(() => error = 'Passwords do not match.');
+      if (_newPassword.text != _confirm.text) {
+        setState(() => error = 'New passwords do not match.');
         return;
       }
-      await AdminAuthService.instance.configure(_password.text);
-      widget.onAuthenticated();
+      setState(() => busy = true);
+      try {
+        await AdminAuthService.instance.changePassword(
+          _password.text,
+          _newPassword.text,
+        );
+        if (mounted) widget.onAuthenticated();
+      } catch (e) {
+        if (mounted) {
+          setState(() {
+            busy = false;
+            error = e.toString().replaceFirst('Exception: ', '');
+          });
+        }
+      }
       return;
     }
+
     setState(() => busy = true);
     final ok = await AdminAuthService.instance.verify(_password.text);
     if (!mounted) return;
-    if (ok) {
-      widget.onAuthenticated();
-    } else {
+    if (!ok) {
       setState(() {
         busy = false;
         error = 'Incorrect password.';
       });
+      return;
     }
+    if (mustChange) {
+      setState(() {
+        busy = false;
+        initialChange = true;
+        _newPassword.clear();
+        _confirm.clear();
+      });
+      return;
+    }
+    widget.onAuthenticated();
   }
 
   @override
   void dispose() {
     _password.dispose();
     _confirm.dispose();
+    _newPassword.dispose();
     super.dispose();
   }
 
@@ -98,7 +128,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                     const SizedBox(height: 28),
                     Text(
-                      configured ? 'Welcome back' : 'Create admin password',
+                      initialChange ? 'Change your default password' : (configured ? 'Welcome back' : 'Create admin password'),
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.headlineSmall
                           ?.copyWith(
@@ -111,11 +141,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       controller: _password,
                       obscureText: obscure,
                       autofocus: true,
-                      textInputAction: configured
+                      textInputAction: initialChange || configured
                           ? TextInputAction.done
                           : TextInputAction.next,
                       decoration: InputDecoration(
-                        labelText: 'Password',
+                        labelText: initialChange ? 'Current temporary password' : 'Password',
                         prefixIcon: const Icon(Icons.lock_outline),
                         suffixIcon: IconButton(
                           tooltip: obscure ? 'Show password' : 'Hide password',
@@ -127,7 +157,28 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       onSubmitted: (_) => configured ? _submit() : null,
                     ),
-                    if (!configured) ...[
+                    if (initialChange) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _newPassword,
+                        obscureText: obscure,
+                        decoration: const InputDecoration(
+                          labelText: 'New password (12+ characters)',
+                          prefixIcon: Icon(Icons.password_outlined),
+                        ),
+                        textInputAction: TextInputAction.next,
+                      ),
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _confirm,
+                        obscureText: obscure,
+                        decoration: const InputDecoration(
+                          labelText: 'Confirm new password',
+                          prefixIcon: Icon(Icons.verified_user_outlined),
+                        ),
+                        onSubmitted: (_) => _submit(),
+                      ),
+                    ] else if (!configured) ...[
                       const SizedBox(height: 12),
                       TextField(
                         controller: _confirm,
@@ -159,9 +210,9 @@ class _LoginScreenState extends State<LoginScreen> {
                                 strokeWidth: 2.4,
                               ),
                             )
-                          : Text(configured ? 'Sign in' : 'Create account'),
+                          : Text(initialChange ? 'Save new password' : (configured ? 'Continue' : 'Create account')),
                     ),
-                    if (configured) ...[
+                    if (configured && !initialChange && !mustChange) ...[
                       const SizedBox(height: 4),
                       TextButton(
                         onPressed: () async {
