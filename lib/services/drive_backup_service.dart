@@ -66,9 +66,13 @@ class DriveBackupService {
     final creditTransactions = await db.query('credit_transactions');
     final cashSessions = await db.query('cash_sessions');
     final cashTransactions = await db.query('cash_transactions');
+    final monthlyBudgets = await db.query('monthly_budgets');
+    final categoryBudgets = await db.query('category_budgets');
+    final recurringExpenses = await db.query('recurring_expenses');
+    final appMeta = await db.query('app_meta');
     return {
       'format': 'billit-finance-sqlite-json',
-      'version': 2,
+      'version': 3,
       'createdAt': DateTime.now().toIso8601String(),
       'expenses': expenses,
       'employees': employees,
@@ -79,6 +83,10 @@ class DriveBackupService {
       'credit_transactions': creditTransactions,
       'cash_sessions': cashSessions,
       'cash_transactions': cashTransactions,
+      'monthly_budgets': monthlyBudgets,
+      'category_budgets': categoryBudgets,
+      'recurring_expenses': recurringExpenses,
+      'app_meta': appMeta,
     };
   }
 
@@ -124,7 +132,7 @@ class DriveBackupService {
     if (decoded is! Map) {
       throw const FormatException('This is not a valid Billit backup.');
     }
-    final isFinanceBackup = decoded['format'] == 'billit-finance-sqlite-json' && (decoded['version'] == 1 || decoded['version'] == 2);
+    final isFinanceBackup = decoded['format'] == 'billit-finance-sqlite-json' && (decoded['version'] == 1 || decoded['version'] == 2 || decoded['version'] == 3);
     final isLegacyBillitBackup = decoded['expenses'] is List && decoded['employees'] is List;
     if (!isFinanceBackup && !isLegacyBillitBackup) {
       throw const FormatException('This backup does not contain compatible Billit finance data.');
@@ -132,6 +140,10 @@ class DriveBackupService {
     final db = await DatabaseService.instance.database;
     await db.transaction((txn) async {
       await txn.delete('cash_transactions');
+      await txn.delete('app_meta');
+      await txn.delete('recurring_expenses');
+      await txn.delete('category_budgets');
+      await txn.delete('monthly_budgets');
       await txn.delete('cash_sessions');
       await txn.delete('credit_transactions');
       await txn.delete('credit_parties');
@@ -176,6 +188,10 @@ class DriveBackupService {
         for (final raw in (decoded['credit_transactions'] as List? ?? const [])) { await txn.insert('credit_transactions', Map<String, Object?>.from(raw as Map)); }
         for (final raw in (decoded['cash_sessions'] as List? ?? const [])) { await txn.insert('cash_sessions', Map<String, Object?>.from(raw as Map)); }
         for (final raw in (decoded['cash_transactions'] as List? ?? const [])) { await txn.insert('cash_transactions', Map<String, Object?>.from(raw as Map)); }
+        for (final raw in (decoded['monthly_budgets'] as List? ?? const [])) { await txn.insert('monthly_budgets', Map<String, Object?>.from(raw as Map)); }
+        for (final raw in (decoded['category_budgets'] as List? ?? const [])) { await txn.insert('category_budgets', Map<String, Object?>.from(raw as Map)); }
+        for (final raw in (decoded['recurring_expenses'] as List? ?? const [])) { await txn.insert('recurring_expenses', Map<String, Object?>.from(raw as Map)); }
+        for (final raw in (decoded['app_meta'] as List? ?? const [])) { await txn.insert('app_meta', Map<String, Object?>.from(raw as Map)); }
       } else if (isLegacyBillitBackup) {
         // Convert Billit's existing sales into income records while preserving
         // the original sale ID for idempotent future imports.
