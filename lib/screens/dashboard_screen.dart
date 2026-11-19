@@ -75,7 +75,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final lastBackup = backupStamp == null ? null : DateTime.tryParse(backupStamp);
     final backupDue = lastBackup == null || DateTime.now().difference(lastBackup).inDays >= 30;
     final monthKey = '${start.year.toString().padLeft(4, '0')}-${start.month.toString().padLeft(2, '0')}';
-    final values = await Future.wait<Object>([
+    final values = await Future.wait<Object?>([
       db.expenses(start: start, end: end),
       db.payroll(start: start, end: end),
       db.income(start: start, end: end),
