@@ -8,53 +8,39 @@ class AdminSettingsAction extends StatelessWidget {
   Widget build(BuildContext context) => IconButton(
     tooltip: 'Admin settings',
     icon: const Icon(Icons.settings_outlined),
-    onPressed: () => showDialog<void>(context: context, builder: (_) => const _AdminSettingsDialog()),
+    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _AdminSettingsPage())),
   );
 }
-
-class _AdminSettingsDialog extends StatelessWidget {
-  const _AdminSettingsDialog();
+class _AdminSettingsPage extends StatelessWidget {
+  const _AdminSettingsPage();
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Settings'),
-    content: SizedBox(
-      width: 380,
-      child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.start, children: [
-        const Padding(padding: EdgeInsets.fromLTRB(4, 0, 4, 8), child: Text('Appearance', style: TextStyle(fontWeight: FontWeight.w700))),
-        ListenableBuilder(
-          listenable: ThemeController.instance,
-          builder: (context, _) => SegmentedButton<ThemeMode>(
-            showSelectedIcon: false,
-            segments: const [
-              ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto_outlined), label: Text('Auto')),
-              ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined), label: Text('Light')),
-              ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined), label: Text('Dark')),
-            ],
-            selected: {ThemeController.instance.mode},
-            onSelectionChanged: (value) => ThemeController.instance.setMode(value.first),
-          ),
-        ),
-        const SizedBox(height: 8),
-        ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 4), leading: const Icon(Icons.lock_outline), title: const Text('Change password'), onTap: () {
-          Navigator.pop(context);
-          showDialog<void>(context: context, builder: (_) => const _ChangeAdminPasswordDialog());
-        }),
-        ListTile(contentPadding: const EdgeInsets.symmetric(horizontal: 4), leading: const Icon(Icons.quiz_outlined), title: const Text('Recovery question'), onTap: () {
-          Navigator.pop(context);
-          showDialog<void>(context: context, builder: (_) => const _SecurityQuestionsDialog());
-        }),
-      ]),
-    ),
-    actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close'))],
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Settings')),
+    body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 680), child: ListView(padding: const EdgeInsets.all(20), children: [
+      const Text('Appearance', style: TextStyle(fontWeight: FontWeight.w700)),
+      const SizedBox(height: 12),
+      ListenableBuilder(listenable: ThemeController.instance, builder: (context, _) => SegmentedButton<ThemeMode>(
+        showSelectedIcon: false,
+        segments: const [
+          ButtonSegment(value: ThemeMode.system, icon: Icon(Icons.brightness_auto_outlined), label: Text('Auto')),
+          ButtonSegment(value: ThemeMode.light, icon: Icon(Icons.light_mode_outlined), label: Text('Light')),
+          ButtonSegment(value: ThemeMode.dark, icon: Icon(Icons.dark_mode_outlined), label: Text('Dark')),
+        ],
+        selected: {ThemeController.instance.mode},
+        onSelectionChanged: (value) => ThemeController.instance.setMode(value.first),
+      )),
+      const SizedBox(height: 20),
+      Card(child: ListTile(leading: const Icon(Icons.lock_outline), title: const Text('Change password'), subtitle: const Text('Update the administrator password'), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _ChangePasswordPage())))),
+      Card(child: ListTile(leading: const Icon(Icons.quiz_outlined), title: const Text('Recovery question'), subtitle: const Text('Update the password recovery answer'), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _RecoveryQuestionPage())))),
+    ]))),
   );
 }
-
-class _ChangeAdminPasswordDialog extends StatefulWidget {
-  const _ChangeAdminPasswordDialog();
+class _ChangePasswordPage extends StatefulWidget {
+  const _ChangePasswordPage();
   @override
-  State<_ChangeAdminPasswordDialog> createState() => _ChangeAdminPasswordDialogState();
+  State<_ChangePasswordPage> createState() => _ChangePasswordPageState();
 }
-class _ChangeAdminPasswordDialogState extends State<_ChangeAdminPasswordDialog> {
+class _ChangePasswordPageState extends State<_ChangePasswordPage> {
   final _current = TextEditingController(), _next = TextEditingController(), _confirm = TextEditingController();
   bool _obscure = true, _saving = false;
   String? _error;
@@ -73,32 +59,30 @@ class _ChangeAdminPasswordDialogState extends State<_ChangeAdminPasswordDialog> 
     finally { if (mounted) setState(() => _saving = false); }
   }
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Change password'),
-    content: SizedBox(width: 420, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Change password')),
+    body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 560), child: ListView(padding: const EdgeInsets.all(20), children: [
       TextField(controller: _current, obscureText: _obscure, decoration: const InputDecoration(labelText: 'Current password')),
       const SizedBox(height: 12),
       TextField(controller: _next, obscureText: _obscure, decoration: const InputDecoration(labelText: 'New password')),
       const SizedBox(height: 12),
       TextField(controller: _confirm, obscureText: _obscure, decoration: const InputDecoration(labelText: 'Confirm new password')),
-      Align(alignment: Alignment.centerLeft, child: TextButton.icon(onPressed: () => setState(() => _obscure = !_obscure), icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined), label: Text(_obscure ? 'Show passwords' : 'Hide passwords'))),
-      if (_error != null) Align(alignment: Alignment.centerLeft, child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+      TextButton.icon(onPressed: () => setState(() => _obscure = !_obscure), icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined), label: Text(_obscure ? 'Show passwords' : 'Hide passwords')),
+      if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+      const SizedBox(height: 16),
+      FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Update password')),
     ]))),
-    actions: [TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')), FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Update password'))],
   );
 }
-
-class _SecurityQuestionsDialog extends StatefulWidget {
-  const _SecurityQuestionsDialog();
+class _RecoveryQuestionPage extends StatefulWidget {
+  const _RecoveryQuestionPage();
   @override
-  State<_SecurityQuestionsDialog> createState() => _SecurityQuestionsDialogState();
+  State<_RecoveryQuestionPage> createState() => _RecoveryQuestionPageState();
 }
-class _SecurityQuestionsDialogState extends State<_SecurityQuestionsDialog> {
-  final _current = TextEditingController();
-  final _answer = TextEditingController();
-  String? _selected;
+class _RecoveryQuestionPageState extends State<_RecoveryQuestionPage> {
+  final _current = TextEditingController(), _answer = TextEditingController();
+  String? _selected, _error;
   bool _saving = false;
-  String? _error;
   @override
   void dispose() { _current.dispose(); _answer.dispose(); super.dispose(); }
   Future<void> _save() async {
@@ -114,22 +98,19 @@ class _SecurityQuestionsDialogState extends State<_SecurityQuestionsDialog> {
     finally { if (mounted) setState(() => _saving = false); }
   }
   @override
-  Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Recovery question'),
-    content: SizedBox(width: 440, child: SingleChildScrollView(child: Column(mainAxisSize: MainAxisSize.min, children: [
-      DropdownButtonFormField<String>(
-        value: _selected,
-        isExpanded: true,
-        decoration: const InputDecoration(labelText: 'Security question'),
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Recovery question')),
+    body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 560), child: ListView(padding: const EdgeInsets.all(20), children: [
+      DropdownButtonFormField<String>(value: _selected, isExpanded: true, decoration: const InputDecoration(labelText: 'Security question'),
         items: AdminAuthService.securityQuestions.entries.map((e) => DropdownMenuItem(value: e.key, child: Text(e.value, overflow: TextOverflow.ellipsis))).toList(),
-        onChanged: (v) => setState(() => _selected = v),
-      ),
+        onChanged: (v) => setState(() => _selected = v)),
       const SizedBox(height: 12),
       TextField(controller: _answer, obscureText: true, decoration: const InputDecoration(labelText: 'Answer')),
       const SizedBox(height: 12),
       TextField(controller: _current, obscureText: true, decoration: const InputDecoration(labelText: 'Current password')),
-      if (_error != null) Align(alignment: Alignment.centerLeft, child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error))),
+      if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+      const SizedBox(height: 16),
+      FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save question')),
     ]))),
-    actions: [TextButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Cancel')), FilledButton(onPressed: _saving ? null : _save, child: Text(_saving ? 'Saving…' : 'Save question'))],
   );
 }
