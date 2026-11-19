@@ -10,6 +10,7 @@ import '../widgets/brand_header.dart';
 import '../widgets/finance_ui.dart';
 import '../widgets/ui_kit.dart';
 import 'entry_form_screens.dart';
+import 'budget_settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key, required this.onNavigate});
@@ -45,6 +46,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<IncomeRecord> income = [];
   double prevIncome = 0, prevCogs = 0, prevExpenses = 0, prevPayroll = 0;
   double collectedTotal = 0;
+  double? monthlyLimit;
+  List<CategoryBudget> categoryLimits = [];
 
   DateTime get start => DateTime(anchor.year, anchor.month, 1);
   DateTime get end => DateTime(anchor.year, anchor.month + 1, 1);
@@ -65,6 +68,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Future<void> load() async {
     final db = DatabaseService.instance;
+    await db.generateRecurringExpenses(DateTime.now());
+    final monthKey = '${start.year.toString().padLeft(4, '0')}-${start.month.toString().padLeft(2, '0')}';
     final values = await Future.wait<Object>([
       db.expenses(start: start, end: end),
       db.payroll(start: start, end: end),
@@ -73,10 +78,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       db.payroll(start: prevStart, end: start),
       db.income(start: prevStart, end: start),
       db.incomeCollected(start: start, end: end),
+      db.totalMonthlyBudget(monthKey),
+      db.categoryBudgets(monthKey),
     ]);
     if (!mounted) return;
     final prevIncomeRows = values[5] as List<IncomeRecord>;
     final collected = values[6] as double;
+    final budget = values[7] as double?;
+    final limits = values[8] as List<CategoryBudget>;
     setState(() {
       expenses = values[0] as List<ExpenseRecord>;
       payroll = values[1] as List<PayrollPayment>;
@@ -92,6 +101,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
       prevIncome = prevIncomeRows.fold<double>(0, (s, e) => s + e.amount);
       prevCogs = prevIncomeRows.fold<double>(0, (s, e) => s + e.costAmount);
       collectedTotal = collected;
+      monthlyLimit = budget;
+      categoryLimits = limits;
       loaded = true;
     });
   }
@@ -193,9 +204,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const SizedBox(height: 8),
                           _hero(context),
                           const SizedBox(height: 12),
+                          _budgetCard(context),
+                          const SizedBox(height: 12),
                           _quickActions(),
                           const SizedBox(height: 12),
                           _stats(),
+                          ExpansionTile(
+                            title: const Text('More', style: TextStyle(fontWeight: FontWeight.w700)),
+                            children: [StatCard(title: 'Payroll', value: FinanceCalculator.money(payrollTotal), icon: Icons.groups, color: AppColors.indigo, delta: FinanceCalculator.percentChange(payrollTotal, prevPayroll), lowerIsBetter: true)],
+                          ),
                           const SectionHeader('Cash flow'),
                           _cashFlowCard(context),
                           if (expenseTotal > prevExpenses && prevExpenses > 0) ...[
@@ -244,97 +261,61 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Widget _hero(BuildContext context) {
-    final positive = netProfit >= 0;
-    final delta = FinanceCalculator.percentChange(netProfit, prevNet);
-    final colors = positive
-        ? const [AppColors.brand, AppColors.brandDeep]
-        : const [Color(0xFFA33327), Color(0xFF6E1F17)];
+    final spent = expenseTotal;
+    final remaining = monthlyLimit == null ? null : monthlyLimit! - spent;
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 18, 20, 20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: colors,
-        ),
+        gradient: const LinearGradient(begin: Alignment.topLeft, end: Alignment.bottomRight, colors: [AppColors.brand, AppColors.brandDeep]),
         borderRadius: BorderRadius.circular(24),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              const Text(
-                'Net result',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const SizedBox(width: 6),
-              const Tooltip(
-                message: 'Sales less cost of goods, expenses and payroll. Not a tax or statutory profit.',
-                triggerMode: TooltipTriggerMode.tap,
-                showDuration: Duration(seconds: 4),
-                child: Icon(
-                  Icons.info_outline,
-                  size: 16,
-                  color: Colors.white70,
-                ),
-              ),
-              const Spacer(),
-              if (delta != null)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: .18),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Text(
-                    '${delta >= 0 ? '▲' : '▼'} ${delta.abs().toStringAsFixed(0)}% vs last month',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          TweenAnimationBuilder<double>(
-            tween: Tween<double>(begin: 0, end: netProfit),
-            duration: const Duration(milliseconds: 700),
-            curve: Curves.easeOutCubic,
-            builder: (context, value, _) => FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: Alignment.centerLeft,
-              child: MaskedText(
-                FinanceCalculator.money(value),
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 36,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.8,
-                ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 18),
-          Row(
-            children: [
-              Expanded(
-                child: _heroFigure('Sales', incomeTotal, Icons.south_west),
-              ),
-              Expanded(child: _heroFigure('Spent', outflow, Icons.north_east)),
-            ],
-          ),
-        ],
-      ),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        const Text('LEFT TO SPEND', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700, letterSpacing: .7)),
+        const SizedBox(height: 8),
+        FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(
+          remaining == null ? 'Set a monthly budget' : FinanceCalculator.money(remaining.clamp(0, double.infinity).toDouble()),
+          style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800),
+        )),
+        const SizedBox(height: 8),
+        Text('${FinanceCalculator.money(spent)} spent this month${monthlyLimit == null ? '' : ' of ${FinanceCalculator.money(monthlyLimit!)}'}', style: const TextStyle(color: Colors.white70)),
+        const SizedBox(height: 12),
+        Align(alignment: Alignment.centerLeft, child: OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white70)),
+          onPressed: () => _open(const BudgetSettingsPage()),
+          icon: const Icon(Icons.tune), label: const Text('Set budget'),
+        )),
+      ]),
     );
+  }
+
+  Widget _budgetCard(BuildContext context) {
+    final elapsed = DateTime.now().day;
+    final days = DateTime(anchor.year, anchor.month + 1, 0).day;
+    final dailyAverage = anchor.year == DateTime.now().year && anchor.month == DateTime.now().month
+        ? expenseTotal / elapsed : expenseTotal / days;
+    final projection = dailyAverage * days;
+    final categories = <String, double>{};
+    for (final e in expenses) { categories[e.category] = (categories[e.category] ?? 0) + e.amount; }
+    return Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [const Expanded(child: Text('Budget progress', style: TextStyle(fontWeight: FontWeight.w800))), TextButton(onPressed: () => _open(const BudgetSettingsPage()), child: const Text('Manage'))]),
+      if (monthlyLimit == null) const Text('Set a monthly budget to track how much is left to spend.'),
+      if (monthlyLimit != null) ...[
+        LinearProgressIndicator(value: (expenseTotal / monthlyLimit!).clamp(0, 1), minHeight: 9, color: expenseTotal > monthlyLimit! ? AppColors.negative : expenseTotal >= monthlyLimit! * .8 ? AppColors.warning : AppColors.positive),
+        const SizedBox(height: 8),
+        Text('${FinanceCalculator.money(expenseTotal)} of ${FinanceCalculator.money(monthlyLimit!)} used'),
+      ],
+      for (final b in categoryLimits) ...[
+        const SizedBox(height: 12),
+        Row(children: [Expanded(child: Text(b.category)), Text('${FinanceCalculator.money(categories[b.category] ?? 0)} / ${FinanceCalculator.money(b.limit)}')]),
+        const SizedBox(height: 5),
+        LinearProgressIndicator(value: ((categories[b.category] ?? 0) / b.limit).clamp(0, 1), minHeight: 7, color: (categories[b.category] ?? 0) > b.limit ? AppColors.negative : (categories[b.category] ?? 0) >= b.limit * .8 ? AppColors.warning : AppColors.positive),
+      ],
+      const Divider(height: 24),
+      FinanceUiRow(label: 'Daily average', value: dailyAverage),
+      FinanceUiRow(label: 'Month-end projection', value: projection, emphasize: true),
+      if (monthlyLimit != null && expenseTotal >= monthlyLimit! * .8)
+        const ListTile(contentPadding: EdgeInsets.zero, leading: Icon(Icons.warning_amber_rounded, color: AppColors.warning), title: Text('You are close to your monthly budget')),
+    ])));
   }
 
   Widget _heroFigure(String label, double value, IconData icon) => Row(
