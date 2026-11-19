@@ -208,7 +208,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           const SizedBox(height: 8),
                           _hero(context),
                           const SizedBox(height: 12),
-                          _budgetCard(context),
                           const SizedBox(height: 12),
                           _quickActions(),
                           const SizedBox(height: 12),
@@ -408,88 +407,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
     ),
   );
 
-  Widget _quickActions() => Row(
+  Widget _quickActions() => Wrap(
+    spacing: 10,
+    runSpacing: 8,
     children: [
-      Expanded(
-        child: _QuickAction(
-          icon: Icons.add_shopping_cart,
-          label: 'Add sale',
-          onTap: () => _open(const IncomeEntryPage()),
-        ),
+      FilledButton.icon(
+        onPressed: () => _open(const IncomeEntryPage()),
+        icon: const Icon(Icons.add_shopping_cart, size: 18),
+        label: const Text('Add sale'),
       ),
-      const SizedBox(width: 10),
-      Expanded(
-        child: _QuickAction(
-          icon: Icons.receipt_long,
-          label: 'Add expense',
-          onTap: () => _open(const ExpenseEntryPage()),
-        ),
+      OutlinedButton.icon(
+        onPressed: () => _open(const ExpenseEntryPage()),
+        icon: const Icon(Icons.receipt_long, size: 18),
+        label: const Text('Add expense'),
       ),
-      const SizedBox(width: 10),
-      Expanded(
-        child: _QuickAction(
-          icon: Icons.groups,
-          label: 'Pay staff',
-          onTap: () => widget.onNavigate(3),
-        ),
+      OutlinedButton.icon(
+        onPressed: () => widget.onNavigate(3),
+        icon: const Icon(Icons.groups, size: 18),
+        label: const Text('Pay staff'),
       ),
     ],
   );
 
-  Widget _stats() => LayoutBuilder(
-    builder: (context, box) {
-      final columns = box.maxWidth >= 900 ? 3 : 2;
-      final width = (box.maxWidth - (columns - 1) * 12) / columns;
-      final margin = incomeTotal <= 0
-          ? '–'
-          : '${(netProfit / incomeTotal * 100).toStringAsFixed(1)}%';
-      final tiles = <Widget>[
-        StatCard(
-          title: 'Sales',
-          value: FinanceCalculator.money(incomeTotal),
-          icon: Icons.trending_up,
-          color: AppColors.positive,
-          delta: FinanceCalculator.percentChange(incomeTotal, prevIncome),
+  Widget _stats() {
+    final margin = incomeTotal <= 0
+        ? '–'
+        : '${(netProfit / incomeTotal * 100).toStringAsFixed(1)}%';
+    final items = <(String, String, Color)>[
+      ('Sales', FinanceCalculator.money(incomeTotal), AppColors.positive),
+      ('Cost of goods', FinanceCalculator.money(costOfGoodsSold), AppColors.brown),
+      ('Gross profit', FinanceCalculator.money(grossProfit), grossProfit >= 0 ? AppColors.positive : AppColors.negative),
+      ('Expenses', FinanceCalculator.money(expenseTotal), AppColors.warning),
+      ('Margin', margin, AppColors.brand),
+    ];
+    return Card(
+      margin: EdgeInsets.zero,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final columns = constraints.maxWidth >= 760 ? 5 : 2;
+            final itemWidth = (constraints.maxWidth - (columns - 1) * 16) / columns;
+            return Wrap(
+              spacing: 16,
+              runSpacing: 16,
+              children: [
+                for (var i = 0; i < items.length; i++)
+                  SizedBox(
+                    width: itemWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(items[i].$1, style: TextStyle(color: context.muted, fontSize: 12, fontWeight: FontWeight.w600)),
+                        const SizedBox(height: 5),
+                        FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: MaskedText(
+                            items[i].$2,
+                            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: items[i].$3),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            );
+          },
         ),
-        StatCard(
-          title: 'Cost of goods',
-          value: FinanceCalculator.money(costOfGoodsSold),
-          icon: Icons.inventory_2_outlined,
-          color: AppColors.brown,
-          delta: FinanceCalculator.percentChange(costOfGoodsSold, prevCogs),
-          lowerIsBetter: true,
-        ),
-        StatCard(
-          title: 'Gross profit',
-          value: FinanceCalculator.money(grossProfit),
-          icon: Icons.show_chart,
-          color: grossProfit >= 0 ? AppColors.positive : AppColors.negative,
-        ),
-        StatCard(
-          title: 'Expenses',
-          value: FinanceCalculator.money(expenseTotal),
-          icon: Icons.receipt_long,
-          color: AppColors.warning,
-          delta: FinanceCalculator.percentChange(expenseTotal, prevExpenses),
-          lowerIsBetter: true,
-        ),
-        StatCard(
-          title: 'Margin',
-          value: margin,
-          icon: Icons.percent,
-          color: AppColors.brand,
-          mask: false,
-        ),
-      ];
-      return Wrap(
-        spacing: 12,
-        runSpacing: 12,
-        children: [
-          for (final tile in tiles) SizedBox(width: width, child: tile),
-        ],
-      );
-    },
-  );
+      ),
+    );
+  }
 
   Widget _activityCard(BuildContext context) {
     final rows = activity;
