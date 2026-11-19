@@ -1,12 +1,13 @@
 class ExpenseRecord {
-  const ExpenseRecord({required this.id, required this.date, required this.category, required this.amount, required this.description});
+  const ExpenseRecord({required this.id, required this.date, required this.category, required this.amount, required this.description, this.receiptPath});
   final int? id;
   final DateTime date;
   final String category;
   final double amount;
   final String description;
-  Map<String, Object?> toMap() => {'id': id, 'date': date.toIso8601String(), 'category': category, 'amount': amount, 'description': description};
-  factory ExpenseRecord.fromMap(Map<String, Object?> row) => ExpenseRecord(id: row['id'] as int, date: DateTime.parse(row['date'] as String), category: row['category'] as String, amount: (row['amount'] as num).toDouble(), description: (row['description'] ?? '') as String);
+  final String? receiptPath;
+  Map<String, Object?> toMap() => {'id': id, 'date': date.toIso8601String(), 'category': category, 'amount': amount, 'description': description, 'receipt_path': receiptPath};
+  factory ExpenseRecord.fromMap(Map<String, Object?> row) => ExpenseRecord(id: row['id'] as int, date: DateTime.parse(row['date'] as String), category: row['category'] as String, amount: (row['amount'] as num).toDouble(), description: (row['description'] ?? '') as String, receiptPath: row['receipt_path'] as String?);
 }
 class EmployeeRecord {
   const EmployeeRecord({required this.id, required this.name, required this.type, required this.wage, this.active = true, this.attendance = 0, this.salaryPaid = false});
@@ -99,4 +100,28 @@ class CashTransaction {
   final String note;
   Map<String, Object?> toMap() => {'id': id, 'session_id': sessionId, 'date': date.toIso8601String(), 'direction': direction, 'method': method, 'amount': amount, 'category': category, 'note': note};
   factory CashTransaction.fromMap(Map<String, Object?> row) => CashTransaction(id: row['id'] as int, sessionId: row['session_id'] as int, date: DateTime.parse(row['date'] as String), direction: row['direction'] as String, method: row['method'] as String, amount: (row['amount'] as num).toDouble(), category: (row['category'] ?? '') as String, note: (row['note'] ?? '') as String);
+}
+
+
+class CategoryBudget {
+  const CategoryBudget({this.id, required this.monthKey, required this.category, required this.limit});
+  final int? id;
+  final String monthKey;
+  final String category;
+  final double limit;
+  Map<String, Object?> toMap() => {'id': id, 'month_key': monthKey, 'category': category, 'limit_amount': limit};
+  factory CategoryBudget.fromMap(Map<String, Object?> row) => CategoryBudget(id: row['id'] as int?, monthKey: row['month_key'] as String, category: row['category'] as String, limit: (row['limit_amount'] as num).toDouble());
+}
+
+class RecurringExpense {
+  const RecurringExpense({this.id, required this.category, required this.amount, required this.description, required this.dayOfMonth, this.active = true, this.lastGeneratedMonth});
+  final int? id;
+  final String category;
+  final double amount;
+  final String description;
+  final int dayOfMonth;
+  final bool active;
+  final String? lastGeneratedMonth;
+  Map<String, Object?> toMap() => {'id': id, 'category': category, 'amount': amount, 'description': description, 'day_of_month': dayOfMonth, 'active': active ? 1 : 0, 'last_generated_month': lastGeneratedMonth};
+  factory RecurringExpense.fromMap(Map<String, Object?> row) => RecurringExpense(id: row['id'] as int?, category: row['category'] as String, amount: (row['amount'] as num).toDouble(), description: row['description'] as String, dayOfMonth: row['day_of_month'] as int, active: (row['active'] as int) == 1, lastGeneratedMonth: row['last_generated_month'] as String?);
 }
