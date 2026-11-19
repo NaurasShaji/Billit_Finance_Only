@@ -218,7 +218,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             leading: const Icon(Icons.cloud_upload_outlined),
                             title: const Text('Monthly backup reminder'),
                             subtitle: const Text('Back up your shop data to Google Drive.'),
-                            trailing: TextButton(onPressed: () => widget.onNavigate(5), child: const Text('Back up')),
+                            trailing: TextButton(onPressed: () => widget.onNavigate(6), child: const Text('Back up')),
                           )),
                           const SizedBox(height: 12),
                           _quickActions(),
