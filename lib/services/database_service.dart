@@ -47,7 +47,7 @@ class DatabaseService {
   Future<void> _createBaseTables(DatabaseExecutor db) async {
     await db.execute("""CREATE TABLE expenses (
       id INTEGER PRIMARY KEY AUTOINCREMENT, date TEXT NOT NULL, category TEXT NOT NULL,
-      amount REAL NOT NULL CHECK(amount > 0), description TEXT NOT NULL DEFAULT '')""");
+      amount REAL NOT NULL CHECK(amount > 0), description TEXT NOT NULL DEFAULT '', receipt_path TEXT)""");
     await db.execute("""CREATE TABLE employees (
       id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
       type TEXT NOT NULL CHECK(type IN ('daily','monthly')), wage REAL NOT NULL CHECK(wage > 0),
