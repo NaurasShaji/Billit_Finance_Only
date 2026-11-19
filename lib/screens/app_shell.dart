@@ -4,9 +4,7 @@ import 'dashboard_screen.dart';
 import 'expenses_screen.dart';
 import 'payroll_screen.dart';
 import 'reports_screen.dart';
-import 'backup_screen.dart';
 import 'finance_operations_screen.dart';
-import 'bill_photos_screen.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key, required this.onLogout});
@@ -23,8 +21,6 @@ class _AppShellState extends State<AppShell> {
     const ExpensesScreen(),
     const PayrollScreen(),
     const ReportsScreen(),
-    const BillPhotosScreen(),
-    BackupScreen(onLogout: widget.onLogout),
   ];
   static const destinations = [
     NavigationDestination(
@@ -53,15 +49,6 @@ class _AppShellState extends State<AppShell> {
       label: 'Reports',
     ),
     NavigationDestination(
-      icon: Icon(Icons.photo_library_outlined),
-      selectedIcon: Icon(Icons.photo_library),
-      label: 'Bill Photos',
-    ),
-    NavigationDestination(
-      icon: Icon(Icons.cloud_outlined),
-      selectedIcon: Icon(Icons.cloud),
-      label: 'Backup',
-    ),
   ];
 
   void _select(int value) => setState(() => index = value);
