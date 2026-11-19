@@ -165,9 +165,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       const SizedBox(height: 4),
                       TextButton(
                         onPressed: () async {
-                          final reset = await showDialog<bool>(
-                            context: context,
-                            builder: (_) => const ForgotPasswordDialog(),
+                          final reset = await Navigator.of(context).push<bool>(
+                            MaterialPageRoute(builder: (_) => const ForgotPasswordDialog()),
                           );
                           if (reset == true && mounted) {
                             _password.clear();
