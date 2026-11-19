@@ -132,7 +132,6 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final monthExpenses = items.where((e) => !e.date.isBefore(monthStart) && e.date.isBefore(DateTime(now.year, now.month + 1, 1))).toList();
     final previousExpenses = items.where((e) => !e.date.isBefore(previousStart) && e.date.isBefore(monthStart)).fold<double>(0, (s, e) => s + e.amount);
     final monthTotal = monthExpenses.fold<double>(0, (s, e) => s + e.amount);
-    final monthKey = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
     final categoryTotals = <String, double>{};
     for (final item in monthExpenses) { categoryTotals[item.category] = (categoryTotals[item.category] ?? 0) + item.amount; }
     final largestCategory = categoryTotals.entries.isEmpty ? null : (categoryTotals.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).first;
