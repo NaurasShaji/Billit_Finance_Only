@@ -329,6 +329,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 icon: const Icon(Icons.replay_outlined, size: 20),
                 onPressed: () async {
                   await DatabaseService.instance.addExpense(ExpenseRecord(
+                    id: null,
                     date: DateTime.now(), category: entry.category, amount: entry.amount,
                     description: entry.description,
                   ));
