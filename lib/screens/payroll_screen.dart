@@ -242,24 +242,8 @@ class _PayrollScreenState extends State<PayrollScreen> {
                                   onPressed: () => pay(employee),
                                   child: const Text('Pay'),
                                 ),
-                              PopupMenuButton<String>(
-                                tooltip: 'More',
-                                onSelected: (value) {
-                                  if (value == 'edit') addEmployee(employee);
-                                  if (value == 'remove')
-                                    removeEmployee(employee);
-                                },
-                                itemBuilder: (_) => const [
-                                  PopupMenuItem(
-                                    value: 'edit',
-                                    child: Text('Edit'),
-                                  ),
-                                  PopupMenuItem(
-                                    value: 'remove',
-                                    child: Text('Remove'),
-                                  ),
-                                ],
-                              ),
+                              IconButton(tooltip: 'Edit employee', onPressed: () => addEmployee(employee), icon: const Icon(Icons.edit_outlined)),
+                              IconButton(tooltip: 'Remove employee', onPressed: () => removeEmployee(employee), icon: const Icon(Icons.delete_outline)),
                             ],
                           ),
                         ),
