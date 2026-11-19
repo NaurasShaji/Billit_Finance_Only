@@ -1,3 +1,4 @@
+import '../screens/backup_screen.dart';
 import 'package:flutter/material.dart';
 import '../services/admin_auth_service.dart';
 import '../theme/app_theme.dart';
@@ -28,6 +29,18 @@ class _AdminSettingsPage extends StatelessWidget {
         ],
         selected: {ThemeController.instance.mode},
         onSelectionChanged: (value) => ThemeController.instance.setMode(value.first),
+      )),
+      const SizedBox(height: 20),
+      const Text('Cloud backup', style: TextStyle(fontWeight: FontWeight.w700)),
+      const SizedBox(height: 8),
+      Card(child: ListTile(
+        leading: const Icon(Icons.cloud_sync_outlined),
+        title: const Text('Google Drive backup'),
+        subtitle: const Text('Connect Drive, create backups and restore shop data'),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(
+          builder: (_) => BackupScreen(onLogout: () {}, showLogout: false),
+        )),
       )),
       const SizedBox(height: 20),
       Card(child: ListTile(leading: const Icon(Icons.lock_outline), title: const Text('Change password'), subtitle: const Text('Update the administrator password'), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _ChangePasswordPage())))),
