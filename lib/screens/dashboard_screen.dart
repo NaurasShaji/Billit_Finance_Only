@@ -48,6 +48,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double collectedTotal = 0;
   double? monthlyLimit;
   List<CategoryBudget> categoryLimits = [];
+  List<Map<String, Object?>> creditRows = [];
   bool backupReminderDue = false;
 
   DateTime get start => DateTime(anchor.year, anchor.month, 1);
@@ -84,12 +85,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
       db.incomeCollected(start: start, end: end),
       db.totalMonthlyBudget(monthKey),
       db.categoryBudgets(monthKey),
+      db.creditBalances(),
     ]);
     if (!mounted) return;
     final prevIncomeRows = values[5] as List<IncomeRecord>;
     final collected = values[6] as double;
     final budget = values[7] as double?;
     final limits = values[8] as List<CategoryBudget>;
+    final credits = values[9] as List<Map<String, Object?>>;
     setState(() {
       expenses = values[0] as List<ExpenseRecord>;
       payroll = values[1] as List<PayrollPayment>;
@@ -107,6 +110,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       collectedTotal = collected;
       monthlyLimit = budget;
       categoryLimits = limits;
+      creditRows = credits;
       backupReminderDue = backupDue;
       loaded = true;
     });
@@ -222,7 +226,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           _stats(),
                           ExpansionTile(
                             title: const Text('More', style: TextStyle(fontWeight: FontWeight.w700)),
-                            children: [StatCard(title: 'Payroll', value: FinanceCalculator.money(payrollTotal), icon: Icons.groups, color: AppColors.indigo, delta: FinanceCalculator.percentChange(payrollTotal, prevPayroll), lowerIsBetter: true)],
+                            children: [
+                              ListTile(leading: const Icon(Icons.groups_outlined), title: const Text('Payroll'), trailing: Text(FinanceCalculator.money(payrollTotal))),
+                              for (final row in creditRows) ListTile(
+                                leading: const Icon(Icons.account_balance_wallet_outlined),
+                                title: Text((row['name'] ?? 'Credit party').toString()),
+                                subtitle: Text((row['type'] ?? '').toString()),
+                                trailing: Text(FinanceCalculator.money(((row['balance'] as num?)?.toDouble() ?? 0).abs())),
+                              ),
+                            ],
                           ),
                           const SectionHeader('Cash flow'),
                           _cashFlowCard(context),
@@ -442,14 +454,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
           icon: Icons.receipt_long,
           color: AppColors.warning,
           delta: FinanceCalculator.percentChange(expenseTotal, prevExpenses),
-          lowerIsBetter: true,
-        ),
-        StatCard(
-          title: 'Payroll',
-          value: FinanceCalculator.money(payrollTotal),
-          icon: Icons.groups,
-          color: AppColors.indigo,
-          delta: FinanceCalculator.percentChange(payrollTotal, prevPayroll),
           lowerIsBetter: true,
         ),
         StatCard(
