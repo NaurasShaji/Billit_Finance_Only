@@ -47,8 +47,8 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => error = null);
 
     if (initialChange) {
-      if (_newPassword.text.length < 12) {
-        setState(() => error = 'Use at least 12 characters for the new password.');
+      if (_newPassword.text.length < 8) {
+        setState(() => error = 'Use at least 8 characters for the new password.');
         return;
       }
       if (_newPassword.text != _confirm.text) {
@@ -163,7 +163,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         controller: _newPassword,
                         obscureText: obscure,
                         decoration: const InputDecoration(
-                          labelText: 'New password (12+ characters)',
+                          labelText: 'New password (8+ characters)',
                           prefixIcon: Icon(Icons.password_outlined),
                         ),
                         textInputAction: TextInputAction.next,
@@ -212,7 +212,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             )
                           : Text(initialChange ? 'Save new password' : (configured ? 'Continue' : 'Create account')),
                     ),
-                    if (configured && !initialChange && !mustChange) ...[
+                    if (configured) ...[
                       const SizedBox(height: 4),
                       TextButton(
                         onPressed: () async {
