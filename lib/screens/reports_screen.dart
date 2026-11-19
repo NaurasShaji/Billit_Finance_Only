@@ -445,7 +445,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             FinanceUiRow(label: 'Expenses recorded', value: expenseTotal),
                             FinanceUiRow(label: 'Remaining', value: monthlyLimit! - expenseTotal, emphasize: true),
                             LinearProgressIndicator(value: (expenseTotal / monthlyLimit!).clamp(0, 1), minHeight: 8, color: expenseTotal > monthlyLimit! ? AppColors.negative : expenseTotal >= monthlyLimit! * .8 ? AppColors.warning : AppColors.positive),
-                            for (final b in categoryLimits) Padding(padding: const EdgeInsets.only(top: 10), child: FinanceUiRow(label: '${b.category} limit', value: b.limit)),
+                            for (final b in categoryLimits) Builder(builder: (context) {
+                              final actual = expenses.where((e) => e.category == b.category).fold<double>(0, (sum, e) => sum + e.amount);
+                              return Padding(padding: const EdgeInsets.only(top: 10), child: Column(children: [
+                                FinanceUiRow(label: b.category, value: actual, trailingLabel: 'of ${FinanceCalculator.money(b.limit)}'),
+                                LinearProgressIndicator(value: (actual / b.limit).clamp(0, 1), minHeight: 6, color: actual > b.limit ? AppColors.negative : actual >= b.limit * .8 ? AppColors.warning : AppColors.positive),
+                              ]));
+                            }),
                           ]))),
                         ],
                         const SectionHeader('Cash collection'),
