@@ -32,6 +32,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   List<IncomeRecord> income = [];
   List<Map<String, Object?>> creditBalanceRows = [];
   double collectedTotal = 0;
+  double? monthlyLimit;
+  List<CategoryBudget> categoryLimits = [];
 
   DateTime get start => period == 'day'
       ? DateTime(anchor.year, anchor.month, anchor.day)
@@ -64,6 +66,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
       DatabaseService.instance.income(start: start, end: end),
       DatabaseService.instance.incomeCollected(start: start, end: end),
       DatabaseService.instance.creditBalances(),
+      DatabaseService.instance.totalMonthlyBudget('${start.year.toString().padLeft(4, '0')}-${start.month.toString().padLeft(2, '0')}'),
+      DatabaseService.instance.categoryBudgets('${start.year.toString().padLeft(4, '0')}-${start.month.toString().padLeft(2, '0')}'),
     ]);
     if (!mounted) return;
     setState(() {
@@ -72,6 +76,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
       income = values[2] as List<IncomeRecord>;
       collectedTotal = values[3] as double;
       creditBalanceRows = values[4] as List<Map<String, Object?>>;
+      monthlyLimit = values[5] as double?;
+      categoryLimits = values[6] as List<CategoryBudget>;
       loaded = true;
     });
   }
@@ -432,6 +438,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
                               SizedBox(width: cardWidth, child: t),
                           ],
                         ),
+                        if (period == 'month' && monthlyLimit != null) ...[
+                          const SectionHeader('Budget vs actual'),
+                          Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(children: [
+                            FinanceUiRow(label: 'Monthly limit', value: monthlyLimit!),
+                            FinanceUiRow(label: 'Expenses recorded', value: expenseTotal),
+                            FinanceUiRow(label: 'Remaining', value: monthlyLimit! - expenseTotal, emphasize: true),
+                            LinearProgressIndicator(value: (expenseTotal / monthlyLimit!).clamp(0, 1), minHeight: 8, color: expenseTotal > monthlyLimit! ? AppColors.negative : expenseTotal >= monthlyLimit! * .8 ? AppColors.warning : AppColors.positive),
+                            for (final b in categoryLimits) Padding(padding: const EdgeInsets.only(top: 10), child: FinanceUiRow(label: '${b.category} limit', value: b.limit)),
+                          ]))),
+                        ],
                         const SectionHeader('Cash collection'),
                         Card(
                           child: Padding(
