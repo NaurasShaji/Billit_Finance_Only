@@ -2,6 +2,187 @@ import 'package:flutter/material.dart';
 import '../services/admin_auth_service.dart';
 import '../theme/app_theme.dart';
 
+class ForgotPasswordDialog extends StatefulWidget {
+  const ForgotPasswordDialog({super.key});
+
+  @override
+  State<ForgotPasswordDialog> createState() => _ForgotPasswordDialogState();
+}
+
+class _ForgotPasswordDialogState extends State<ForgotPasswordDialog> {
+  final _answer = TextEditingController();
+  final _password = TextEditingController();
+  final _confirm = TextEditingController();
+  List<String> _questionIds = [];
+  String? _selectedQuestion;
+  bool _loading = true;
+  bool _saving = false;
+  bool _obscure = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadQuestions();
+  }
+
+  Future<void> _loadQuestions() async {
+    try {
+      final ids = await AdminAuthService.instance.getRecoveryQuestionIds();
+      if (!mounted) return;
+      setState(() {
+        _questionIds = ids;
+        _selectedQuestion = ids.isEmpty ? null : ids.first;
+        _loading = false;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _error = 'Could not load recovery question: $e';
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _answer.dispose();
+    _password.dispose();
+    _confirm.dispose();
+    super.dispose();
+  }
+
+  Future<void> _reset() async {
+    if (_selectedQuestion == null) {
+      setState(() => _error = 'No recovery question is configured for this account.');
+      return;
+    }
+    if (_answer.text.trim().isEmpty) {
+      setState(() => _error = 'Enter the answer to your recovery question.');
+      return;
+    }
+    if (_password.text.length < 8) {
+      setState(() => _error = 'New password must contain at least 8 characters.');
+      return;
+    }
+    if (_password.text != _confirm.text) {
+      setState(() => _error = 'New passwords do not match.');
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await AdminAuthService.instance.resetPasswordWithRecovery(
+        {_selectedQuestion!: _answer.text},
+        _password.text,
+      );
+      if (!mounted) return;
+      Navigator.of(context).pop(true);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _error = e.toString().replaceFirst('Exception: ', '');
+        });
+      }
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Reset password')),
+    body: Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 560),
+        child: _loading
+            ? const Center(child: CircularProgressIndicator())
+            : ListView(
+                padding: const EdgeInsets.all(20),
+                children: [
+                  if (_questionIds.isEmpty)
+                    const Card(
+                      child: Padding(
+                        padding: EdgeInsets.all(18),
+                        child: Text(
+                          'No recovery question has been configured. Password recovery is unavailable on this device.',
+                        ),
+                      ),
+                    )
+                  else ...[
+                    const Text(
+                      'Answer your saved recovery question to set a new admin password.',
+                    ),
+                    const SizedBox(height: 16),
+                    DropdownButtonFormField<String>(
+                      value: _selectedQuestion,
+                      isExpanded: true,
+                      decoration: const InputDecoration(labelText: 'Recovery question'),
+                      items: _questionIds
+                          .where(AdminAuthService.securityQuestions.containsKey)
+                          .map(
+                            (id) => DropdownMenuItem(
+                              value: id,
+                              child: Text(
+                                AdminAuthService.securityQuestions[id]!,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: _saving
+                          ? null
+                          : (value) => setState(() => _selectedQuestion = value),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _answer,
+                      decoration: const InputDecoration(labelText: 'Recovery answer'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _password,
+                      obscureText: _obscure,
+                      decoration: const InputDecoration(labelText: 'New password (8+ characters)'),
+                    ),
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _confirm,
+                      obscureText: _obscure,
+                      decoration: const InputDecoration(labelText: 'Confirm new password'),
+                    ),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: TextButton.icon(
+                        onPressed: () => setState(() => _obscure = !_obscure),
+                        icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
+                        label: Text(_obscure ? 'Show passwords' : 'Hide passwords'),
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    FilledButton(
+                      onPressed: _saving ? null : _reset,
+                      child: Text(_saving ? 'Resetting…' : 'Reset password'),
+                    ),
+                  ],
+                  if (_error != null) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      _error!,
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
+                  ],
+                ],
+              ),
+      ),
+    ),
+  );
+}
+
+
 class AdminSettingsAction extends StatelessWidget {
   const AdminSettingsAction({super.key});
   @override
