@@ -22,3 +22,9 @@ android {
     }
 }
 flutter { source = "../.." }
+// Keep Kotlin bytecode compatible with the Java 17 compile target.
+tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+}
