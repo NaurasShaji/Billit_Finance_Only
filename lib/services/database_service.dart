@@ -120,6 +120,8 @@ class DatabaseService {
   }
   Future<List<CategoryBudget>> categoryBudgets(String monthKey) async =>
       (await (await database).query('category_budgets', where: 'month_key = ?', whereArgs: [monthKey], orderBy: 'category')).map(CategoryBudget.fromMap).toList();
+  Future<int> deleteCategoryBudget(String monthKey, String category) =>
+      _write((db) => db.delete('category_budgets', where: 'month_key = ? AND category = ?', whereArgs: [monthKey, category]));
   Future<void> saveCategoryBudget(CategoryBudget budget) async {
     await _write((db) => db.insert('category_budgets', budget.toMap()..remove('id'), conflictAlgorithm: ConflictAlgorithm.replace));
   }
