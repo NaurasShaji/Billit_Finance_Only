@@ -15,6 +15,7 @@ import '../theme/app_theme.dart';
 import '../widgets/admin_settings_action.dart';
 import '../widgets/finance_ui.dart';
 import '../widgets/ui_kit.dart';
+import 'entry_form_screens.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -116,6 +117,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           pw.Text(label),
           pw.SizedBox(height: 18),
           pw.Text('Income / sales: INR ${incomeTotal.toStringAsFixed(2)}'),
+          pw.Text('Collected from customers: INR ${collectedTotal.toStringAsFixed(2)}'),
+          pw.Text('Pending collection on period sales: INR ${outstandingSales.toStringAsFixed(2)}'),
+          pw.Text('All-time outstanding credit ledger: INR ${outstandingCredit.toStringAsFixed(2)}'),
           pw.Text(
             'Cost of goods sold: INR ${costOfGoodsSold.toStringAsFixed(2)}',
           ),
@@ -236,6 +240,9 @@ class _ReportsScreenState extends State<ReportsScreen> {
           e.amount.toStringAsFixed(2),
         ].map(_csvCell).join(','),
       ),
+      ['', '', '', 'Collected from customers', collectedTotal.toStringAsFixed(2)].map(_csvCell).join(','),
+      ['', '', '', 'Pending collection', outstandingSales.toStringAsFixed(2)].map(_csvCell).join(','),
+      ['', '', '', 'All-time outstanding credit ledger', outstandingCredit.toStringAsFixed(2)].map(_csvCell).join(','),
       [
         '',
         '',
@@ -446,7 +453,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             ]),
                           ),
                         ),
-                        const SectionHeader('Outstanding credit ledger'),
+                        const SectionHeader('All-time outstanding credit ledger'),
                         Card(
                           child: creditBalanceRows.isEmpty
                               ? const EmptyState(title: 'No credit parties recorded', icon: Icons.account_balance_wallet_outlined)
