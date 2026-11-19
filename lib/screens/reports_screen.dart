@@ -448,7 +448,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             for (final b in categoryLimits) Builder(builder: (context) {
                               final actual = expenses.where((e) => e.category == b.category).fold<double>(0, (sum, e) => sum + e.amount);
                               return Padding(padding: const EdgeInsets.only(top: 10), child: Column(children: [
-                                FinanceUiRow(label: b.category, value: actual, trailingLabel: 'of ${FinanceCalculator.money(b.limit)}'),
+                                Row(children: [Expanded(child: Text(b.category)), Text('${FinanceCalculator.money(actual)} / ${FinanceCalculator.money(b.limit)}', style: const TextStyle(fontWeight: FontWeight.w700))]),
                                 LinearProgressIndicator(value: (actual / b.limit).clamp(0, 1), minHeight: 6, color: actual > b.limit ? AppColors.negative : actual >= b.limit * .8 ? AppColors.warning : AppColors.positive),
                               ]));
                             }),
