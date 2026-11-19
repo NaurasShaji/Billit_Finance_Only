@@ -10,7 +10,8 @@ import '../widgets/admin_settings_action.dart';
 import '../widgets/ui_kit.dart';
 
 class BillPhotosScreen extends StatefulWidget {
-  const BillPhotosScreen({super.key});
+  const BillPhotosScreen({super.key, this.embedInAccounts = false});
+  final bool embedInAccounts;
 
   @override
   State<BillPhotosScreen> createState() => _BillPhotosScreenState();
@@ -197,12 +198,7 @@ class _BillPhotosScreenState extends State<BillPhotosScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Bill Photos'),
-        actions: const [AdminSettingsAction()],
-      ),
-      body: Center(
+    final content = Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 1050),
           child: _loading
@@ -334,7 +330,12 @@ class _BillPhotosScreenState extends State<BillPhotosScreen> {
                   ),
                 ),
         ),
-      ),
-    );
+      );
+    return embedInAccounts
+        ? content
+        : Scaffold(
+            appBar: AppBar(title: const Text('Bill Photos'), actions: const [AdminSettingsAction()]),
+            body: content,
+          );
   }
 }
