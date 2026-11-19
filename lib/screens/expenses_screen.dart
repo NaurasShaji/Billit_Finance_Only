@@ -84,6 +84,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                   category: entry.category,
                   amount: entry.amount,
                   description: entry.description,
+                  receiptPath: entry.receiptPath,
                 ),
               );
               await refresh();
@@ -319,7 +320,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                 onPressed: () async {
                   await DatabaseService.instance.addExpense(ExpenseRecord(
                     date: DateTime.now(), category: entry.category, amount: entry.amount,
-                    description: entry.description, receiptPath: entry.receiptPath,
+                    description: entry.description,
                   ));
                   await refresh();
                 },
