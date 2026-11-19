@@ -9,8 +9,9 @@ import '../widgets/finance_ui.dart';
 import '../widgets/ui_kit.dart';
 
 class BackupScreen extends StatefulWidget {
-  const BackupScreen({super.key, required this.onLogout});
+  const BackupScreen({super.key, required this.onLogout, this.showLogout = true});
   final VoidCallback onLogout;
+  final bool showLogout;
   @override
   State<BackupScreen> createState() => _BackupScreenState();
 }
@@ -75,11 +76,12 @@ class _BackupScreenState extends State<BackupScreen> {
         title: const Text('Backup'),
         actions: [
           const AdminSettingsAction(),
-          IconButton(
-            tooltip: 'Log out',
-            onPressed: widget.onLogout,
-            icon: const Icon(Icons.logout),
-          ),
+          if (widget.showLogout)
+            IconButton(
+              tooltip: 'Log out',
+              onPressed: widget.onLogout,
+              icon: const Icon(Icons.logout),
+            ),
         ],
       ),
       body: Center(
