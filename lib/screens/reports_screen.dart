@@ -384,27 +384,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           onNext: () => shiftPeriod(1),
                         ),
                         const SizedBox(height: 6),
-                        const SectionHeader('Cash collection'),
-                        Card(
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(children: [
-                              FinanceUiRow(label: 'Sales recorded', value: incomeTotal),
-                              FinanceUiRow(label: 'Collected', value: collectedTotal),
-                              FinanceUiRow(label: 'Pending collection', value: outstandingSales, emphasize: true),
-                              const SizedBox(height: 8),
-                              ClipRRect(
-                                borderRadius: BorderRadius.circular(8),
-                                child: LinearProgressIndicator(
-                                  minHeight: 8,
-                                  value: incomeTotal <= 0 ? 0 : (collectedTotal / incomeTotal).clamp(0, 1),
-                                  backgroundColor: context.hairline,
-                                  color: context.good,
-                                ),
-                              ),
-                            ]),
-                          ),
-                        ),
                         const SectionHeader('All-time outstanding credit ledger'),
                         Card(
                           child: creditBalanceRows.isEmpty
