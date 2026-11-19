@@ -293,14 +293,30 @@ class _DashboardScreenState extends State<DashboardScreen> {
         borderRadius: BorderRadius.circular(24),
       ),
       child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          const Expanded(child: Text('MONTHLY BUDGET', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700, letterSpacing: .8))),
+          Container(padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5), decoration: BoxDecoration(color: Colors.white.withValues(alpha: .16), borderRadius: BorderRadius.circular(20)), child: Text(DateFormat('MMM yyyy').format(anchor), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700))),
+        ]),
+        const SizedBox(height: 14),
         const Text('LEFT TO SPEND', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700, letterSpacing: .7)),
         const SizedBox(height: 8),
         FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(
           remaining == null ? 'Set a monthly budget' : remaining < 0 ? 'Over by ${FinanceCalculator.money(remaining.abs())}' : FinanceCalculator.money(remaining),
           style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800),
         )),
-        const SizedBox(height: 8),
-        Text('${FinanceCalculator.money(spent)} spent this month${monthlyLimit == null ? '' : ' of ${FinanceCalculator.money(monthlyLimit!)}'}', style: const TextStyle(color: Colors.white70)),
+        const SizedBox(height: 12),
+        if (monthlyLimit != null) ...[
+          ClipRRect(borderRadius: BorderRadius.circular(20), child: LinearProgressIndicator(
+            value: (spent / monthlyLimit!).clamp(0, 1), minHeight: 9,
+            backgroundColor: Colors.white.withValues(alpha: .2),
+            color: spent > monthlyLimit! ? Colors.white : Colors.white,
+          )),
+          const SizedBox(height: 8),
+        ],
+        Row(children: [
+          Expanded(child: Text('${FinanceCalculator.money(spent)} spent', style: const TextStyle(color: Colors.white70))),
+          if (monthlyLimit != null) Text('of ${FinanceCalculator.money(monthlyLimit!)}', style: const TextStyle(color: Colors.white70)),
+        ]),
         const SizedBox(height: 12),
         Align(alignment: Alignment.centerLeft, child: OutlinedButton.icon(
           style: OutlinedButton.styleFrom(foregroundColor: Colors.white, side: const BorderSide(color: Colors.white70)),
@@ -319,8 +335,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final projection = dailyAverage * days;
     final categories = <String, double>{};
     for (final e in expenses) { categories[e.category] = (categories[e.category] ?? 0) + e.amount; }
-    return Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Row(children: [const Expanded(child: Text('Budget progress', style: TextStyle(fontWeight: FontWeight.w800))), TextButton(onPressed: () => _open(const BudgetSettingsPage()), child: const Text('Manage'))]),
+    return Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      Row(children: [
+        Container(width: 38, height: 38, decoration: BoxDecoration(color: context.accent.withValues(alpha: .12), borderRadius: BorderRadius.circular(12)), child: Icon(Icons.pie_chart_outline_rounded, color: context.accent)),
+        const SizedBox(width: 10),
+        const Expanded(child: Text('Budget progress', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16))), TextButton(onPressed: () => _open(const BudgetSettingsPage()), child: const Text('Manage'))]),
       if (monthlyLimit == null) const Text('Set a monthly budget to track how much is left to spend.'),
       if (monthlyLimit != null) ...[
         LinearProgressIndicator(value: (expenseTotal / monthlyLimit!).clamp(0, 1), minHeight: 9, color: expenseTotal > monthlyLimit! ? AppColors.negative : expenseTotal >= monthlyLimit! * .8 ? AppColors.warning : AppColors.positive),
@@ -328,10 +347,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         Text('${FinanceCalculator.money(expenseTotal)} of ${FinanceCalculator.money(monthlyLimit!)} used'),
       ],
       for (final b in categoryLimits) ...[
-        const SizedBox(height: 12),
-        Row(children: [Expanded(child: Text(b.category)), Text('${FinanceCalculator.money(categories[b.category] ?? 0)} / ${FinanceCalculator.money(b.limit)}')]),
-        const SizedBox(height: 5),
-        LinearProgressIndicator(value: ((categories[b.category] ?? 0) / b.limit).clamp(0, 1), minHeight: 7, color: (categories[b.category] ?? 0) > b.limit ? AppColors.negative : (categories[b.category] ?? 0) >= b.limit * .8 ? AppColors.warning : AppColors.positive),
+        const SizedBox(height: 15),
+        Row(children: [
+          Icon(categoryIcon(b.category), size: 18, color: context.muted),
+          const SizedBox(width: 8),
+          Expanded(child: Text(b.category, style: const TextStyle(fontWeight: FontWeight.w600))),
+          Text('${FinanceCalculator.money(categories[b.category] ?? 0)} / ${FinanceCalculator.money(b.limit)}', style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12)),
+        ]),
+        const SizedBox(height: 7),
+        ClipRRect(borderRadius: BorderRadius.circular(20), child: LinearProgressIndicator(
+          value: ((categories[b.category] ?? 0) / b.limit).clamp(0, 1), minHeight: 8,
+          backgroundColor: context.hairline,
+          color: (categories[b.category] ?? 0) > b.limit ? AppColors.negative : (categories[b.category] ?? 0) >= b.limit * .8 ? AppColors.warning : AppColors.positive,
+        )),
       ],
       const Divider(height: 24),
       FinanceUiRow(label: 'Daily average', value: dailyAverage),
