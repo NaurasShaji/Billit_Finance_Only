@@ -93,6 +93,7 @@ class DatabaseService {
 
 
   Future<void> _createBudgetTables(DatabaseExecutor db) async {
+    await db.execute('CREATE TABLE IF NOT EXISTS app_meta (meta_key TEXT PRIMARY KEY, meta_value TEXT NOT NULL)');
     await db.execute("""CREATE TABLE IF NOT EXISTS monthly_budgets (month_key TEXT PRIMARY KEY, limit_amount REAL NOT NULL CHECK(limit_amount > 0))""");
     await db.execute("""CREATE TABLE IF NOT EXISTS category_budgets (
       id INTEGER PRIMARY KEY AUTOINCREMENT, month_key TEXT NOT NULL,
@@ -142,7 +143,15 @@ class DatabaseService {
         await txn.update('recurring_expenses', {'last_generated_month': monthKey}, where: 'id = ?', whereArgs: [item.id]);
       }
     });
-    notifyChanged();
+    if (templates.isNotEmpty) notifyChanged();
+  }
+
+  Future<String?> metaValue(String key) async {
+    final rows = await (await database).query('app_meta', where: 'meta_key = ?', whereArgs: [key], limit: 1);
+    return rows.isEmpty ? null : rows.first['meta_value'] as String?;
+  }
+  Future<void> setMetaValue(String key, String value) async {
+    await _write((db) => db.insert('app_meta', {'meta_key': key, 'meta_value': value}, conflictAlgorithm: ConflictAlgorithm.replace));
   }
 
   Future<int> addExpense(ExpenseRecord e) => _write((db) => db.insert('expenses', e.toMap()..remove('id')));
