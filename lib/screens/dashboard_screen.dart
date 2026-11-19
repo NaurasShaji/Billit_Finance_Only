@@ -296,7 +296,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
         const Text('LEFT TO SPEND', style: TextStyle(color: Colors.white70, fontWeight: FontWeight.w700, letterSpacing: .7)),
         const SizedBox(height: 8),
         FittedBox(alignment: Alignment.centerLeft, fit: BoxFit.scaleDown, child: Text(
-          remaining == null ? 'Set a monthly budget' : FinanceCalculator.money(remaining.clamp(0, double.infinity).toDouble()),
+          remaining == null ? 'Set a monthly budget' : remaining < 0 ? 'Over by ${FinanceCalculator.money(remaining.abs())}' : FinanceCalculator.money(remaining),
           style: const TextStyle(color: Colors.white, fontSize: 34, fontWeight: FontWeight.w800),
         )),
         const SizedBox(height: 8),
