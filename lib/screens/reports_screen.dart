@@ -350,52 +350,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
               builder: (context, viewport) {
                 final width = viewport.maxWidth;
                 final pad = width < 600 ? 16.0 : 24.0;
-                final columns = width >= 1050 ? 3 : 2;
-                final inner = width.clamp(0, 1180).toDouble() - pad * 2;
-                final cardWidth = (inner - (columns - 1) * 12) / columns;
-                final tiles = <Widget>[
-                  StatCard(
-                    title: 'Sales',
-                    value: FinanceCalculator.money(incomeTotal),
-                    icon: Icons.trending_up,
-                    color: AppColors.positive,
-                  ),
-                  StatCard(
-                    title: 'Cost of goods',
-                    value: FinanceCalculator.money(costOfGoodsSold),
-                    icon: Icons.inventory_2_outlined,
-                    color: AppColors.brown,
-                  ),
-                  StatCard(
-                    title: 'Gross profit',
-                    value: FinanceCalculator.money(grossProfit),
-                    icon: Icons.show_chart,
-                    color: grossProfit >= 0
-                        ? AppColors.positive
-                        : AppColors.negative,
-                  ),
-                  StatCard(
-                    title: 'Expenses',
-                    value: FinanceCalculator.money(expenseTotal),
-                    icon: Icons.receipt_long,
-                    color: AppColors.warning,
-                  ),
-                  StatCard(
-                    title: 'Payroll',
-                    value: FinanceCalculator.money(payrollTotal),
-                    icon: Icons.groups,
-                    color: AppColors.indigo,
-                  ),
-                  StatCard(
-                    title: 'Net result',
-                    value: FinanceCalculator.money(netProfit),
-                    icon: Icons.account_balance,
-                    color: netProfit >= 0
-                        ? AppColors.positive
-                        : AppColors.negative,
-                    info: 'Sales less cost of goods, expenses and payroll. Not a tax or statutory profit.',
-                  ),
-                ];
                 return Center(
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 1180),
@@ -433,30 +387,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           onNext: () => shiftPeriod(1),
                         ),
                         const SizedBox(height: 6),
-                        Wrap(
-                          spacing: 12,
-                          runSpacing: 12,
-                          children: [
-                            for (final t in tiles)
-                              SizedBox(width: cardWidth, child: t),
-                          ],
-                        ),
-                        if (period == 'month' && monthlyLimit != null) ...[
-                          const SectionHeader('Budget vs actual'),
-                          Card(child: Padding(padding: const EdgeInsets.all(16), child: Column(children: [
-                            FinanceUiRow(label: 'Monthly limit', value: monthlyLimit!),
-                            FinanceUiRow(label: 'Expenses recorded', value: expenseTotal),
-                            FinanceUiRow(label: 'Remaining', value: monthlyLimit! - expenseTotal, emphasize: true),
-                            LinearProgressIndicator(value: (expenseTotal / monthlyLimit!).clamp(0, 1), minHeight: 8, color: expenseTotal > monthlyLimit! ? AppColors.negative : expenseTotal >= monthlyLimit! * .8 ? AppColors.warning : AppColors.positive),
-                            for (final b in categoryLimits) Builder(builder: (context) {
-                              final actual = expenses.where((e) => e.category == b.category).fold<double>(0, (sum, e) => sum + e.amount);
-                              return Padding(padding: const EdgeInsets.only(top: 10), child: Column(children: [
-                                Row(children: [Expanded(child: Text(b.category)), Text('${FinanceCalculator.money(actual)} / ${FinanceCalculator.money(b.limit)}', style: const TextStyle(fontWeight: FontWeight.w700))]),
-                                LinearProgressIndicator(value: (actual / b.limit).clamp(0, 1), minHeight: 6, color: actual > b.limit ? AppColors.negative : actual >= b.limit * .8 ? AppColors.warning : AppColors.positive),
-                              ]));
-                            }),
-                          ]))),
-                        ],
                         const SectionHeader('Cash collection'),
                         Card(
                           child: Padding(
