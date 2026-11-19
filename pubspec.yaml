@@ -31,7 +31,7 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
 flutter_launcher_icons:
   android: launcher_icon
-  ios: true
+  ios: false
   image_path: assets/icon/billit_icon.png
   adaptive_icon_foreground: assets/icon/billit_icon.png
   adaptive_icon_background: "#e6f7f4"
