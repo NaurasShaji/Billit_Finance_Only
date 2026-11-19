@@ -44,6 +44,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   List<PayrollPayment> payroll = [];
   List<IncomeRecord> income = [];
   double prevIncome = 0, prevCogs = 0, prevExpenses = 0, prevPayroll = 0;
+  double collectedTotal = 0;
 
   DateTime get start => DateTime(anchor.year, anchor.month, 1);
   DateTime get end => DateTime(anchor.year, anchor.month + 1, 1);
@@ -71,9 +72,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
       db.expenses(start: prevStart, end: start),
       db.payroll(start: prevStart, end: start),
       db.income(start: prevStart, end: start),
+      db.incomeCollected(start: start, end: end),
     ]);
     if (!mounted) return;
     final prevIncomeRows = values[5] as List<IncomeRecord>;
+    final collected = values[6] as double;
     setState(() {
       expenses = values[0] as List<ExpenseRecord>;
       payroll = values[1] as List<PayrollPayment>;
@@ -88,6 +91,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       );
       prevIncome = prevIncomeRows.fold<double>(0, (s, e) => s + e.amount);
       prevCogs = prevIncomeRows.fold<double>(0, (s, e) => s + e.costAmount);
+      collectedTotal = collected;
       loaded = true;
     });
   }
@@ -192,6 +196,16 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           _quickActions(),
                           const SizedBox(height: 12),
                           _stats(),
+                          const SectionHeader('Cash flow'),
+                          _cashFlowCard(context),
+                          if (expenseTotal > prevExpenses && prevExpenses > 0) ...[
+                            const SectionHeader('Spending alert'),
+                            Card(child: ListTile(
+                              leading: const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+                              title: const Text('Expenses are higher than last month'),
+                              subtitle: Text('${FinanceCalculator.percentChange(expenseTotal, prevExpenses)!.toStringAsFixed(1)}% increase compared with the previous month'),
+                            )),
+                          ],
                           const SectionHeader('Spending breakdown'),
                           Card(
                             child: Padding(
@@ -358,6 +372,19 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ),
       ),
     ],
+  );
+
+  Widget _cashFlowCard(BuildContext context) => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(children: [
+        FinanceUiRow(label: 'Sales recorded', value: incomeTotal),
+        FinanceUiRow(label: 'Collected from customers', value: collectedTotal),
+        FinanceUiRow(label: 'Pending collection', value: (incomeTotal - collectedTotal).clamp(0, double.infinity).toDouble()),
+        const Divider(),
+        FinanceUiRow(label: 'Operating outflow', value: expenseTotal + payrollTotal, emphasize: true),
+      ]),
+    ),
   );
 
   Widget _quickActions() => Row(
