@@ -33,7 +33,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
   List<Map<String, Object?>> creditBalanceRows = [];
   double collectedTotal = 0;
   double? monthlyLimit;
-  List<CategoryBudget> categoryLimits = [];
 
   DateTime get start => period == 'day'
       ? DateTime(anchor.year, anchor.month, anchor.day)
@@ -67,7 +66,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
       DatabaseService.instance.incomeCollected(start: start, end: end),
       DatabaseService.instance.creditBalances(),
       DatabaseService.instance.totalMonthlyBudget('${start.year.toString().padLeft(4, '0')}-${start.month.toString().padLeft(2, '0')}'),
-      DatabaseService.instance.categoryBudgets('${start.year.toString().padLeft(4, '0')}-${start.month.toString().padLeft(2, '0')}'),
     ]);
     if (!mounted) return;
     setState(() {
@@ -77,7 +75,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
       collectedTotal = values[3] as double;
       creditBalanceRows = values[4] as List<Map<String, Object?>>;
       monthlyLimit = values[5] as double?;
-      categoryLimits = values[6] as List<CategoryBudget>;
       loaded = true;
     });
   }
