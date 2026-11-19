@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:file_picker/file_picker.dart';
 
 import '../models/finance_models.dart';
 import '../services/database_service.dart';
@@ -45,6 +46,11 @@ class _IncomeEntryPageState extends State<IncomeEntryPage> {
     if (t.isEmpty) return null;
     final n = double.tryParse(t);
     return n == null || n < 0 ? 'Enter a valid amount' : null;
+  }
+
+  Future<void> _pickReceipt() async {
+    final result = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false);
+    if (result?.files.single.path != null) setState(() => _receiptPath = result!.files.single.path);
   }
 
   Future<void> _save() async {
@@ -145,6 +151,18 @@ class _IncomeEntryPageState extends State<IncomeEntryPage> {
                       ),
                     ),
                     const SizedBox(height: 14),
+                    OutlinedButton.icon(
+                      onPressed: _pickReceipt,
+                      icon: const Icon(Icons.photo_camera_back_outlined),
+                      label: Text(_receiptPath == null ? 'Attach receipt photo' : 'Change receipt photo'),
+                    ),
+                    if (_receiptPath != null)
+                      ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: const Icon(Icons.image_outlined),
+                        title: Text(_receiptPath!.split('/').last, maxLines: 1, overflow: TextOverflow.ellipsis),
+                        trailing: IconButton(icon: const Icon(Icons.close), onPressed: () => setState(() => _receiptPath = null)),
+                      ),
                     DateField(
                       value: _date,
                       onChanged: (d) => setState(() => _date = d),
@@ -258,6 +276,7 @@ class _ExpenseEntryPageState extends State<ExpenseEntryPage> {
   late DateTime _date;
   bool _saving = false;
   bool _custom = false;
+  String? _receiptPath;
 
   @override
   void initState() {
@@ -269,6 +288,7 @@ class _ExpenseEntryPageState extends State<ExpenseEntryPage> {
     _custom = !expenseCategories.contains(_category);
     _customCategory = TextEditingController(text: _custom ? _category : '');
     _date = e?.date ?? DateTime.now();
+    _receiptPath = e?.receiptPath;
   }
 
   @override
@@ -289,6 +309,7 @@ class _ExpenseEntryPageState extends State<ExpenseEntryPage> {
         category: _custom ? _customCategory.text.trim() : _category,
         amount: double.parse(_amount.text.trim()),
         description: _description.text.trim(),
+        receiptPath: _receiptPath,
       );
       if (widget.existing == null) {
         await DatabaseService.instance.addExpense(record);
