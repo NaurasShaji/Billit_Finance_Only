@@ -316,17 +316,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
       appBar: AppBar(
         title: const Text('Reports'),
         actions: [
-          PopupMenuButton<String>(
-            tooltip: 'Export',
-            icon: const Icon(Icons.ios_share),
-            onSelected: _onExport,
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'pdf-save', child: Text('Download PDF')),
-              PopupMenuItem(value: 'pdf-share', child: Text('Share PDF')),
-              PopupMenuItem(value: 'csv-save', child: Text('Download CSV')),
-              PopupMenuItem(value: 'csv-share', child: Text('Share CSV')),
-            ],
-          ),
+
           const AdminSettingsAction(),
         ],
       ),
@@ -388,6 +378,17 @@ class _ReportsScreenState extends State<ReportsScreen> {
                     child: ListView(
                       padding: EdgeInsets.fromLTRB(pad, 8, pad, 28),
                       children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: context.softFill, borderRadius: BorderRadius.circular(14)),
+                          child: Wrap(spacing: 8, runSpacing: 8, children: [
+                            OutlinedButton.icon(onPressed: _download, icon: const Icon(Icons.picture_as_pdf_outlined), label: const Text('Download PDF')),
+                            OutlinedButton.icon(onPressed: _share, icon: const Icon(Icons.share_outlined), label: const Text('Share PDF')),
+                            OutlinedButton.icon(onPressed: _downloadCsv, icon: const Icon(Icons.table_view_outlined), label: const Text('Download CSV')),
+                            OutlinedButton.icon(onPressed: _shareCsv, icon: const Icon(Icons.share_outlined), label: const Text('Share CSV')),
+                          ]),
+                        ),
+                        const SizedBox(height: 12),
                         SegmentedButton<String>(
                           showSelectedIcon: false,
                           segments: const [
