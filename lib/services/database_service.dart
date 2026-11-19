@@ -21,11 +21,12 @@ class DatabaseService {
     if (_db != null) return _db!;
     _db = await openDatabase(
       p.join(await getDatabasesPath(), 'billit_finance.db'),
-      version: 4,
+      version: 5,
       onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, version) async {
         await _createBaseTables(db);
         await _createFinanceTables(db);
+        await _createBudgetTables(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -34,6 +35,10 @@ class DatabaseService {
         }
         if (oldVersion < 3) await _createFinanceTables(db);
         if (oldVersion < 4) await db.execute('ALTER TABLE income_entries ADD COLUMN cost_amount REAL NOT NULL DEFAULT 0 CHECK(cost_amount >= 0)');
+        if (oldVersion < 5) {
+          await db.execute('ALTER TABLE expenses ADD COLUMN receipt_path TEXT');
+          await _createBudgetTables(db);
+        }
       },
     );
     return _db!;
@@ -84,6 +89,52 @@ class DatabaseService {
     await db.execute('CREATE INDEX idx_income_date ON income_entries(date)');
     await db.execute('CREATE INDEX idx_credit_party ON credit_transactions(party_id, date)');
     await db.execute('CREATE INDEX idx_cash_session ON cash_transactions(session_id, date)');
+  }
+
+
+  Future<void> _createBudgetTables(DatabaseExecutor db) async {
+    await db.execute("""CREATE TABLE IF NOT EXISTS category_budgets (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, month_key TEXT NOT NULL,
+      category TEXT NOT NULL, limit_amount REAL NOT NULL CHECK(limit_amount > 0),
+      UNIQUE(month_key, category))""");
+    await db.execute("""CREATE TABLE IF NOT EXISTS recurring_expenses (
+      id INTEGER PRIMARY KEY AUTOINCREMENT, category TEXT NOT NULL,
+      amount REAL NOT NULL CHECK(amount > 0), description TEXT NOT NULL DEFAULT '',
+      day_of_month INTEGER NOT NULL CHECK(day_of_month BETWEEN 1 AND 31),
+      active INTEGER NOT NULL DEFAULT 1, last_generated_month TEXT)""");
+  }
+
+  Future<double?> monthlyBudget(String monthKey) async {
+    final rows = await (await database).query('category_budgets', columns: ['SUM(limit_amount) AS total'], where: 'month_key = ?', whereArgs: [monthKey]);
+    final value = rows.first['total'] as num?;
+    return value?.toDouble();
+  }
+  Future<List<CategoryBudget>> categoryBudgets(String monthKey) async =>
+      (await (await database).query('category_budgets', where: 'month_key = ?', whereArgs: [monthKey], orderBy: 'category')).map(CategoryBudget.fromMap).toList();
+  Future<void> saveCategoryBudget(CategoryBudget budget) async {
+    await _write((db) => db.insert('category_budgets', budget.toMap()..remove('id'), conflictAlgorithm: ConflictAlgorithm.replace));
+  }
+  Future<List<RecurringExpense>> recurringExpenses() async =>
+      (await (await database).query('recurring_expenses', orderBy: 'active DESC, category')).map(RecurringExpense.fromMap).toList();
+  Future<int> saveRecurringExpense(RecurringExpense item) => _write((db) async {
+    final values = item.toMap()..remove('id');
+    if (item.id == null) return db.insert('recurring_expenses', values);
+    return db.update('recurring_expenses', values, where: 'id = ?', whereArgs: [item.id]);
+  });
+  Future<int> deleteRecurringExpense(int id) => _write((db) => db.delete('recurring_expenses', where: 'id = ?', whereArgs: [id]));
+  Future<void> generateRecurringExpenses(DateTime now) async {
+    final db = await database;
+    final monthKey = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    await db.transaction((txn) async {
+      final templates = await txn.query('recurring_expenses', where: 'active = 1 AND (last_generated_month IS NULL OR last_generated_month != ?)', whereArgs: [monthKey]);
+      for (final raw in templates) {
+        final item = RecurringExpense.fromMap(raw);
+        final day = item.dayOfMonth.clamp(1, DateTime(now.year, now.month + 1, 0).day);
+        await txn.insert('expenses', {'date': DateTime(now.year, now.month, day).toIso8601String(), 'category': item.category, 'amount': item.amount, 'description': item.description});
+        await txn.update('recurring_expenses', {'last_generated_month': monthKey}, where: 'id = ?', whereArgs: [item.id]);
+      }
+    });
+    notifyChanged();
   }
 
   Future<int> addExpense(ExpenseRecord e) => _write((db) => db.insert('expenses', e.toMap()..remove('id')));
