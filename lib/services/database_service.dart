@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite/sqflite.dart';
@@ -21,12 +22,13 @@ class DatabaseService {
     if (_db != null) return _db!;
     _db = await openDatabase(
       p.join(await getDatabasesPath(), 'billit_finance.db'),
-      version: 5,
+      version: 6,
       onConfigure: (db) async => db.execute('PRAGMA foreign_keys = ON'),
       onCreate: (db, version) async {
         await _createBaseTables(db);
         await _createFinanceTables(db);
         await _createBudgetTables(db);
+        await _createBillPhotoTable(db);
       },
       onUpgrade: (db, oldVersion, newVersion) async {
         if (oldVersion < 2) {
@@ -39,6 +41,7 @@ class DatabaseService {
           await db.execute('ALTER TABLE expenses ADD COLUMN receipt_path TEXT');
           await _createBudgetTables(db);
         }
+        if (oldVersion < 6) await _createBillPhotoTable(db);
       },
     );
     return _db!;
@@ -105,6 +108,31 @@ class DatabaseService {
       day_of_month INTEGER NOT NULL CHECK(day_of_month BETWEEN 1 AND 31),
       active INTEGER NOT NULL DEFAULT 1, last_generated_month TEXT)""");
   }
+
+  Future<void> _createBillPhotoTable(DatabaseExecutor db) async {
+    await db.execute("""CREATE TABLE IF NOT EXISTS bill_photos (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      bill_date TEXT NOT NULL,
+      image_data BLOB NOT NULL,
+      created_at TEXT NOT NULL
+    )""");
+    await db.execute('CREATE INDEX IF NOT EXISTS idx_bill_photos_date ON bill_photos(bill_date)');
+  }
+
+  Future<int> addBillPhoto({required String title, required DateTime date, required Uint8List imageBytes}) =>
+      _write((db) => db.insert('bill_photos', {
+        'title': title,
+        'bill_date': date.toIso8601String(),
+        'image_data': imageBytes,
+        'created_at': DateTime.now().toIso8601String(),
+      }));
+
+  Future<List<Map<String, Object?>>> billPhotos() async =>
+      (await (await database).query('bill_photos', orderBy: 'bill_date DESC, id DESC'));
+
+  Future<int> deleteBillPhoto(int id) =>
+      _write((db) => db.delete('bill_photos', where: 'id = ?', whereArgs: [id]));
 
   Future<double?> totalMonthlyBudget(String monthKey) async {
     final rows = await (await database).query('monthly_budgets', where: 'month_key = ?', whereArgs: [monthKey], limit: 1);
