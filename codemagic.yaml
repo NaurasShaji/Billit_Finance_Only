@@ -16,3 +16,19 @@ workflows:
         script: flutter build apk --release
     artifacts:
       - build/app/outputs/flutter-apk/*.apk
+
+  billit-finance-web:
+    name: Billit Finance Web
+    max_build_duration: 60
+    instance_type: linux_x2
+    environment:
+      flutter: stable
+    scripts:
+      - name: Install Flutter dependencies
+        script: flutter pub get
+      - name: Generate SQLite WebAssembly and worker files
+        script: dart run sqflite_common_ffi_web:setup
+      - name: Build production web app
+        script: flutter build web --release
+    artifacts:
+      - build/web/**
