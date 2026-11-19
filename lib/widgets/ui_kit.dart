@@ -398,11 +398,8 @@ class DateField extends StatelessWidget {
           ),
           selected: custom,
           onSelected: (_) async {
-            final picked = await showDatePicker(
-              context: context,
-              initialDate: value,
-              firstDate: DateTime(2000),
-              lastDate: DateTime(2100),
+            final picked = await Navigator.of(context).push<DateTime>(
+              MaterialPageRoute(builder: (_) => _DateSelectionPage(initialDate: value)),
             );
             if (picked != null) onChanged(picked);
           },
@@ -439,5 +436,31 @@ class EmptyState extends StatelessWidget {
         ],
       ),
     ),
+  );
+}
+
+class _DateSelectionPage extends StatefulWidget {
+  const _DateSelectionPage({required this.initialDate});
+  final DateTime initialDate;
+  @override
+  State<_DateSelectionPage> createState() => _DateSelectionPageState();
+}
+class _DateSelectionPageState extends State<_DateSelectionPage> {
+  late DateTime _selected = widget.initialDate;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(
+      title: const Text('Choose date'),
+      actions: [TextButton(onPressed: () => Navigator.pop(context, _selected), child: const Text('Done'))],
+    ),
+    body: Center(child: ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 520),
+      child: CalendarDatePicker(
+        initialDate: _selected,
+        firstDate: DateTime(2000),
+        lastDate: DateTime(2100),
+        onDateChanged: (date) => setState(() => _selected = date),
+      ),
+    )),
   );
 }
