@@ -190,6 +190,23 @@ class _LoginScreenState extends State<LoginScreen> {
                         onSubmitted: (_) => _submit(),
                       ),
                     ],
+                    if (configured) ...[
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: TextButton(
+                          onPressed: () async {
+                            final reset = await Navigator.of(context).push<bool>(
+                              MaterialPageRoute(builder: (_) => const ForgotPasswordDialog()),
+                            );
+                            if (reset == true && mounted) {
+                              _password.clear();
+                              setState(() => error = null);
+                            }
+                          },
+                          child: const Text('Forgot password?'),
+                        ),
+                      ),
+                    ],
                     if (error != null) ...[
                       const SizedBox(height: 12),
                       Text(
@@ -212,21 +229,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             )
                           : Text(initialChange ? 'Save new password' : (configured ? 'Continue' : 'Create account')),
                     ),
-                    if (configured) ...[
-                      const SizedBox(height: 4),
-                      TextButton(
-                        onPressed: () async {
-                          final reset = await Navigator.of(context).push<bool>(
-                            MaterialPageRoute(builder: (_) => const ForgotPasswordDialog()),
-                          );
-                          if (reset == true && mounted) {
-                            _password.clear();
-                            setState(() => error = null);
-                          }
-                        },
-                        child: const Text('Forgot password?'),
-                      ),
-                    ],
                   ],
                 ),
               ),
