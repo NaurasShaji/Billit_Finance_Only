@@ -10,6 +10,7 @@ import '../widgets/admin_settings_action.dart';
 import '../widgets/finance_ui.dart';
 import '../widgets/ui_kit.dart';
 import 'entry_form_screens.dart';
+import 'bill_photos_screen.dart';
 
 String _cap(String value) {
   final text = value.replaceAll('_', ' ');
@@ -20,7 +21,7 @@ class FinanceOperationsScreen extends StatelessWidget {
   const FinanceOperationsScreen({super.key});
   @override
   Widget build(BuildContext context) => DefaultTabController(
-    length: 3,
+    length: 4,
     child: Scaffold(
       appBar: AppBar(
         title: const Text('Accounts'),
@@ -30,11 +31,12 @@ class FinanceOperationsScreen extends StatelessWidget {
             Tab(text: 'Income'),
             Tab(text: 'Credit'),
             Tab(text: 'Cash book'),
+            Tab(text: 'Bill images'),
           ],
         ),
       ),
       body: const TabBarView(
-        children: [_IncomeTab(), _CreditTab(), _CashTab()],
+        children: [_IncomeTab(), _CreditTab(), _CashTab(), BillPhotosScreen(embedInAccounts: true)],
       ),
     ),
   );
