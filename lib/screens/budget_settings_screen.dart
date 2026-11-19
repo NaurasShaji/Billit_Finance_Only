@@ -3,6 +3,7 @@ import '../models/finance_models.dart';
 import '../services/database_service.dart';
 import '../services/finance_calculator.dart';
 import '../widgets/ui_kit.dart';
+import '../widgets/finance_ui.dart';
 
 class BudgetSettingsPage extends StatefulWidget {
   const BudgetSettingsPage({super.key});
