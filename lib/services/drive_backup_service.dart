@@ -96,6 +96,7 @@ class DriveBackupService {
       uploadMedia: media,
       $fields: 'id',
     );
+    await DatabaseService.instance.setMetaValue('last_backup_at', DateTime.now().toIso8601String());
   }
 
   Future<List<DriveBackup>> listBackups() async {
