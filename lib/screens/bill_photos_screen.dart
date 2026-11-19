@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
 
 import '../services/database_service.dart';
+import '../theme/app_theme.dart';
 import '../widgets/admin_settings_action.dart';
 import '../widgets/ui_kit.dart';
 
