@@ -8,6 +8,7 @@ import '../widgets/admin_settings_action.dart';
 import '../widgets/finance_ui.dart';
 import '../widgets/ui_kit.dart';
 import 'entry_form_screens.dart';
+import 'budget_settings_screen.dart';
 
 class ExpensesScreen extends StatefulWidget {
   const ExpensesScreen({super.key});
@@ -48,6 +49,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
   }
 
   Future<void> refresh() async {
+    await DatabaseService.instance.generateRecurringExpenses(DateTime.now());
     final values = await DatabaseService.instance.expenses();
     if (!mounted) return;
     setState(() {
@@ -135,7 +137,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Expenses'),
-        actions: const [AdminSettingsAction()],
+        actions: [
+          IconButton(tooltip: 'Budget and recurring bills', icon: const Icon(Icons.tune), onPressed: () async {
+            await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BudgetSettingsPage()));
+            await refresh();
+          }),
+          const AdminSettingsAction(),
+        ],
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => edit(),
@@ -303,10 +311,21 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
               style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             subtitle: hasNote ? Text(entry.category) : null,
-            trailing: MaskedText(
-              FinanceCalculator.money(entry.amount),
-              style: const TextStyle(fontWeight: FontWeight.w800),
-            ),
+            trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+              if (entry.receiptPath != null) const Icon(Icons.attachment_outlined, size: 17),
+              IconButton(
+                tooltip: 'Repeat this expense',
+                icon: const Icon(Icons.replay_outlined, size: 20),
+                onPressed: () async {
+                  await DatabaseService.instance.addExpense(ExpenseRecord(
+                    date: DateTime.now(), category: entry.category, amount: entry.amount,
+                    description: entry.description, receiptPath: entry.receiptPath,
+                  ));
+                  await refresh();
+                },
+              ),
+              MaskedText(FinanceCalculator.money(entry.amount), style: const TextStyle(fontWeight: FontWeight.w800)),
+            ]),
           ),
         ),
       ),
