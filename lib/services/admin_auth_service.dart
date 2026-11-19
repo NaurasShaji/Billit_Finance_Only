@@ -9,16 +9,27 @@ class AdminAuthService {
   static const _storage = FlutterSecureStorage();
   static const _saltKey = 'admin_password_salt';
   static const _hashKey = 'admin_password_hash';
+  static const _mustChangeKey = 'admin_password_change_required';
+  // Shared initial installer password. The owner must replace it before entry.
+  static const defaultAdminPassword = 'Billit@Shop#Start2026!Secure';
 
   Future<bool> get isConfigured async {
     final configured = (await _storage.read(key: _hashKey)) != null;
     if (!configured) {
-      final initialPassword = String.fromCharCodes([97, 100, 109, 105, 110, 49, 50, 51]);
-      await configure(initialPassword);
-      return true;
+      await _writePassword(defaultAdminPassword, requireChange: true);
+    } else if (await _storage.read(key: _mustChangeKey) == null) {
+      // Migrate existing installations that still use the old admin123 default.
+      final isLegacyDefault = await verify('admin123');
+      await _storage.write(
+        key: _mustChangeKey,
+        value: isLegacyDefault ? 'true' : 'false',
+      );
     }
     return true;
   }
+
+  Future<bool> get mustChangePassword async =>
+      (await _storage.read(key: _mustChangeKey)) == 'true';
 
   static const securityQuestions = <String, String>{
     'school': 'What was the name of your first school?',
@@ -85,7 +96,7 @@ class AdminAuthService {
     if (!await verifyRecoveryAnswers(answers)) {
       throw Exception('Security answers do not match.');
     }
-    await configure(newPassword);
+    await _writePassword(newPassword, requireChange: false);
   }
 
   String _hash(String password, String salt) =>
@@ -112,8 +123,19 @@ class AdminAuthService {
     if (password.length < 8) {
       throw ArgumentError('Admin password must contain at least 8 characters.');
     }
+    await _writePassword(password, requireChange: false);
+  }
+
+  Future<void> _writePassword(
+    String password, {
+    required bool requireChange,
+  }) async {
     final salt = const Uuid().v4();
     await _storage.write(key: _saltKey, value: salt);
     await _storage.write(key: _hashKey, value: _hash(password, salt));
+    await _storage.write(
+      key: _mustChangeKey,
+      value: requireChange ? 'true' : 'false',
+    );
   }
 }
