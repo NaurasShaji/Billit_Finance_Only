@@ -331,7 +331,7 @@ class _BillPhotosScreenState extends State<BillPhotosScreen> {
                 ),
         ),
       );
-    return embedInAccounts
+    return widget.embedInAccounts
         ? content
         : Scaffold(
             appBar: AppBar(title: const Text('Bill Photos'), actions: const [AdminSettingsAction()]),
