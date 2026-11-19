@@ -134,8 +134,10 @@ class DatabaseService {
   Future<void> generateRecurringExpenses(DateTime now) async {
     final db = await database;
     final monthKey = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
+    var generated = false;
     await db.transaction((txn) async {
       final templates = await txn.query('recurring_expenses', where: 'active = 1 AND (last_generated_month IS NULL OR last_generated_month != ?)', whereArgs: [monthKey]);
+      generated = templates.isNotEmpty;
       for (final raw in templates) {
         final item = RecurringExpense.fromMap(raw);
         final day = item.dayOfMonth.clamp(1, DateTime(now.year, now.month + 1, 0).day);
@@ -143,7 +145,7 @@ class DatabaseService {
         await txn.update('recurring_expenses', {'last_generated_month': monthKey}, where: 'id = ?', whereArgs: [item.id]);
       }
     });
-    if (templates.isNotEmpty) notifyChanged();
+    if (generated) notifyChanged();
   }
 
   Future<String?> metaValue(String key) async {
