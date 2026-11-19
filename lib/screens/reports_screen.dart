@@ -60,7 +60,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
   Future<void> load() async {
-    final values = await Future.wait<Object>([
+    final values = await Future.wait<Object?>([
       DatabaseService.instance.expenses(start: start, end: end),
       DatabaseService.instance.payroll(start: start, end: end),
       DatabaseService.instance.income(start: start, end: end),
