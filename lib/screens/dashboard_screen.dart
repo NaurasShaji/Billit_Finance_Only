@@ -48,6 +48,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double collectedTotal = 0;
   double? monthlyLimit;
   List<CategoryBudget> categoryLimits = [];
+  bool backupReminderDue = false;
 
   DateTime get start => DateTime(anchor.year, anchor.month, 1);
   DateTime get end => DateTime(anchor.year, anchor.month + 1, 1);
@@ -69,6 +70,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> load() async {
     final db = DatabaseService.instance;
     await db.generateRecurringExpenses(DateTime.now());
+    final backupStamp = await db.metaValue('last_backup_at');
+    final lastBackup = backupStamp == null ? null : DateTime.tryParse(backupStamp);
+    final backupDue = lastBackup == null || DateTime.now().difference(lastBackup).inDays >= 30;
     final monthKey = '${start.year.toString().padLeft(4, '0')}-${start.month.toString().padLeft(2, '0')}';
     final values = await Future.wait<Object>([
       db.expenses(start: start, end: end),
@@ -103,6 +107,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       collectedTotal = collected;
       monthlyLimit = budget;
       categoryLimits = limits;
+      backupReminderDue = backupDue;
       loaded = true;
     });
   }
@@ -205,6 +210,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           _hero(context),
                           const SizedBox(height: 12),
                           _budgetCard(context),
+                          if (backupReminderDue) Card(child: ListTile(
+                            leading: const Icon(Icons.cloud_upload_outlined),
+                            title: const Text('Monthly backup reminder'),
+                            subtitle: const Text('Back up your shop data to Google Drive.'),
+                            trailing: TextButton(onPressed: () => widget.onNavigate(5), child: const Text('Back up')),
+                          )),
                           const SizedBox(height: 12),
                           _quickActions(),
                           const SizedBox(height: 12),
