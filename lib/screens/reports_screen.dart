@@ -131,6 +131,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
           pw.Text('Gross profit: INR ${grossProfit.toStringAsFixed(2)}'),
           pw.Text('Expenses: INR ${expenseTotal.toStringAsFixed(2)}'),
+          if (period == 'month' && monthlyLimit != null) pw.Text('Budget: INR ${monthlyLimit!.toStringAsFixed(2)} | Remaining: INR ${(monthlyLimit! - expenseTotal).toStringAsFixed(2)}'),
           pw.Text('Payroll: INR ${payrollTotal.toStringAsFixed(2)}'),
           pw.Text(
             'Total outflow: INR ${(expenseTotal + payrollTotal).toStringAsFixed(2)}',
@@ -249,6 +250,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ['', '', '', 'Collected from customers', collectedTotal.toStringAsFixed(2)].map(_csvCell).join(','),
       ['', '', '', 'Pending collection', outstandingSales.toStringAsFixed(2)].map(_csvCell).join(','),
       ['', '', '', 'All-time outstanding credit ledger', outstandingCredit.toStringAsFixed(2)].map(_csvCell).join(','),
+      if (period == 'month' && monthlyLimit != null) ['', '', '', 'Monthly budget', monthlyLimit!.toStringAsFixed(2)].map(_csvCell).join(','),
+      if (period == 'month' && monthlyLimit != null) ['', '', '', 'Budget remaining', (monthlyLimit! - expenseTotal).toStringAsFixed(2)].map(_csvCell).join(','),
       [
         '',
         '',
