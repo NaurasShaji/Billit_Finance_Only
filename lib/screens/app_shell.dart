@@ -48,7 +48,6 @@ class _AppShellState extends State<AppShell> {
       selectedIcon: Icon(Icons.assessment),
       label: 'Reports',
     ),
-    NavigationDestination(
   ];
 
   void _select(int value) => setState(() => index = value);
