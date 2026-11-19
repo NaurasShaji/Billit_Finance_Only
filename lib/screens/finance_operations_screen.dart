@@ -234,9 +234,8 @@ class _CreditTabState extends State<_CreditTab> {
   }
 
   Future<void> addParty() async {
-    final party = await showDialog<CreditParty>(
-      context: context,
-      builder: (_) => const _PartyDialog(),
+    final party = await Navigator.of(context).push<CreditParty>(
+      MaterialPageRoute(builder: (_) => const _PartyEntryPage()),
     );
     if (party == null) return;
     await DatabaseService.instance.addCreditParty(party);
@@ -248,57 +247,15 @@ class _CreditTabState extends State<_CreditTab> {
       party.id!,
     );
     if (!mounted) return;
-    final addNew = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: Text(party.name),
-        content: SizedBox(
-          width: 420,
-          child: history.isEmpty
-              ? const Text('No entries yet')
-              : SizedBox(
-                  height: 320,
-                  child: ListView(
-                    children: [
-                      for (final t in history)
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: Text(_cap(t.type)),
-                          subtitle: Text(
-                            DateFormat('dd MMM yyyy').format(t.date) +
-                                (t.dueDate == null
-                                    ? ''
-                                    : ' • Due ${DateFormat('dd MMM yyyy').format(t.dueDate!)}') +
-                                (t.note.isEmpty ? '' : ' • ${t.note}'),
-                          ),
-                          trailing: Text(
-                            FinanceCalculator.money(t.amount),
-                            style: const TextStyle(fontWeight: FontWeight.w700),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Close'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Add entry'),
-          ),
-        ],
-      ),
+    final addNew = await Navigator.of(context).push<bool>(
+      MaterialPageRoute(builder: (_) => _PartyHistoryPage(party: party, history: history)),
     );
     if (addNew == true && mounted) await addEntry(party);
   }
 
   Future<void> addEntry(CreditParty party) async {
-    final entry = await showDialog<CreditTransaction>(
-      context: context,
-      builder: (_) => _EntryDialog(party: party),
+    final entry = await Navigator.of(context).push<CreditTransaction>(
+      MaterialPageRoute(builder: (_) => _CreditEntryPage(party: party)),
     );
     if (entry == null) return;
     await DatabaseService.instance.addCreditTransaction(entry);
@@ -700,9 +657,8 @@ class _CashTabState extends State<_CashTab> {
   }
 
   Future<void> movement() async {
-    final entry = await showDialog<CashTransaction>(
-      context: context,
-      builder: (_) => _MovementDialog(sessionId: session!.id!),
+    final entry = await Navigator.of(context).push<CashTransaction>(
+      MaterialPageRoute(builder: (_) => _CashMovementPage(sessionId: session!.id!)),
     );
     if (entry == null) return;
     await DatabaseService.instance.addCashTransaction(entry);
@@ -963,5 +919,124 @@ class _MovementDialogState extends State<_MovementDialog> {
       ),
       FilledButton(onPressed: _save, child: const Text('Save')),
     ],
+  );
+}
+
+
+class _PartyEntryPage extends StatefulWidget {
+  const _PartyEntryPage();
+  @override
+  State<_PartyEntryPage> createState() => _PartyEntryPageState();
+}
+class _PartyEntryPageState extends State<_PartyEntryPage> {
+  final _name = TextEditingController(), _phone = TextEditingController();
+  String _type = 'customer';
+  String? _error;
+  @override
+  void dispose() { _name.dispose(); _phone.dispose(); super.dispose(); }
+  void _save() {
+    if (_name.text.trim().isEmpty) { setState(() => _error = 'Enter a name'); return; }
+    Navigator.pop(context, CreditParty(name: _name.text.trim(), phone: _phone.text.trim(), type: _type));
+  }
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Add party'), actions: [TextButton(onPressed: _save, child: const Text('Save'))]),
+    body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640), child: ListView(padding: const EdgeInsets.all(20), children: [
+      SegmentedButton<String>(showSelectedIcon: false, segments: const [ButtonSegment(value: 'customer', label: Text('Customer')), ButtonSegment(value: 'supplier', label: Text('Supplier'))], selected: {_type}, onSelectionChanged: (v) => setState(() => _type = v.first)),
+      const SizedBox(height: 16),
+      TextField(controller: _name, autofocus: true, textCapitalization: TextCapitalization.words, decoration: InputDecoration(labelText: 'Name', errorText: _error)),
+      const SizedBox(height: 12),
+      TextField(controller: _phone, keyboardType: TextInputType.phone, decoration: const InputDecoration(labelText: 'Phone')),
+      const SizedBox(height: 20),
+      FilledButton(onPressed: _save, child: const Text('Save party')),
+    ]))),
+  );
+}
+
+class _PartyHistoryPage extends StatelessWidget {
+  const _PartyHistoryPage({required this.party, required this.history});
+  final CreditParty party;
+  final List<CreditTransaction> history;
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text(party.name), actions: [TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Add entry'))]),
+    body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 760), child: ListView(padding: const EdgeInsets.all(16), children: [
+      if (history.isEmpty) const EmptyState(title: 'No entries yet', icon: Icons.receipt_long_outlined),
+      for (final t in history) Card(child: ListTile(
+        title: Text(_cap(t.type)),
+        subtitle: Text(DateFormat('dd MMM yyyy').format(t.date) + (t.dueDate == null ? '' : ' • Due ${DateFormat('dd MMM yyyy').format(t.dueDate!)}') + (t.note.isEmpty ? '' : ' • ${t.note}')),
+        trailing: Text(FinanceCalculator.money(t.amount), style: const TextStyle(fontWeight: FontWeight.w700)),
+      )),
+    ]))),
+  );
+}
+
+class _CreditEntryPage extends StatefulWidget {
+  const _CreditEntryPage({required this.party});
+  final CreditParty party;
+  @override
+  State<_CreditEntryPage> createState() => _CreditEntryPageState();
+}
+class _CreditEntryPageState extends State<_CreditEntryPage> {
+  final _amount = TextEditingController(), _note = TextEditingController();
+  late String _type = widget.party.type == 'customer' ? 'credit_sale' : 'credit_purchase';
+  DateTime _due = DateTime.now().add(const Duration(days: 7));
+  String? _error;
+  List<String> get _types => widget.party.type == 'customer' ? ['credit_sale', 'payment_received', 'adjustment'] : ['credit_purchase', 'payment_made', 'adjustment'];
+  bool get _isCredit => _type == 'credit_sale' || _type == 'credit_purchase';
+  @override
+  void dispose() { _amount.dispose(); _note.dispose(); super.dispose(); }
+  void _save() {
+    final value = double.tryParse(_amount.text.trim());
+    if (value == null || value <= 0) { setState(() => _error = 'Enter a valid amount'); return; }
+    Navigator.pop(context, CreditTransaction(partyId: widget.party.id!, date: DateTime.now(), type: _type, amount: value, dueDate: _isCredit ? _due : null, note: _note.text.trim()));
+  }
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: Text('Add entry · ${widget.party.name}'), actions: [TextButton(onPressed: _save, child: const Text('Save'))]),
+    body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640), child: ListView(padding: const EdgeInsets.all(20), children: [
+      Wrap(spacing: 8, runSpacing: 8, children: [for (final t in _types) ChoiceChip(label: Text(_cap(t)), selected: _type == t, onSelected: (_) => setState(() => _type = t))]),
+      const SizedBox(height: 16),
+      TextField(controller: _amount, autofocus: true, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Amount', prefixText: '₹ ', errorText: _error)),
+      const SizedBox(height: 12),
+      TextField(controller: _note, decoration: const InputDecoration(labelText: 'Note')),
+      if (_isCredit) ...[const SizedBox(height: 12), DateField(value: _due, onChanged: (d) => setState(() => _due = d)), Text('Due date: ${DateFormat('dd MMM yyyy').format(_due)}')],
+      const SizedBox(height: 20),
+      FilledButton(onPressed: _save, child: const Text('Save entry')),
+    ]))),
+  );
+}
+
+class _CashMovementPage extends StatefulWidget {
+  const _CashMovementPage({required this.sessionId});
+  final int sessionId;
+  @override
+  State<_CashMovementPage> createState() => _CashMovementPageState();
+}
+class _CashMovementPageState extends State<_CashMovementPage> {
+  final _amount = TextEditingController(), _note = TextEditingController();
+  String _direction = 'in', _method = 'cash';
+  String? _error;
+  @override
+  void dispose() { _amount.dispose(); _note.dispose(); super.dispose(); }
+  void _save() {
+    final value = double.tryParse(_amount.text.trim());
+    if (value == null || value <= 0) { setState(() => _error = 'Enter a valid amount'); return; }
+    Navigator.pop(context, CashTransaction(sessionId: widget.sessionId, date: DateTime.now(), direction: _direction, method: _method, amount: value, note: _note.text.trim()));
+  }
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Cash movement'), actions: [TextButton(onPressed: _save, child: const Text('Save'))]),
+    body: Center(child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 640), child: ListView(padding: const EdgeInsets.all(20), children: [
+      SegmentedButton<String>(showSelectedIcon: false, segments: const [ButtonSegment(value: 'in', label: Text('Money in'), icon: Icon(Icons.south_west)), ButtonSegment(value: 'out', label: Text('Money out'), icon: Icon(Icons.north_east))], selected: {_direction}, onSelectionChanged: (v) => setState(() => _direction = v.first)),
+      const SizedBox(height: 16),
+      Wrap(spacing: 8, children: [for (final m in ['cash', 'upi', 'card', 'bank']) ChoiceChip(label: Text(m.toUpperCase()), selected: _method == m, onSelected: (_) => setState(() => _method = m))]),
+      const SizedBox(height: 16),
+      TextField(controller: _amount, autofocus: true, keyboardType: const TextInputType.numberWithOptions(decimal: true), decoration: InputDecoration(labelText: 'Amount', prefixText: '₹ ', errorText: _error)),
+      const SizedBox(height: 12),
+      TextField(controller: _note, decoration: const InputDecoration(labelText: 'Description')),
+      const SizedBox(height: 20),
+      FilledButton(onPressed: _save, child: const Text('Save movement')),
+    ]))),
   );
 }
