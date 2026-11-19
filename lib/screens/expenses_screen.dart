@@ -123,6 +123,15 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final entries = shown;
     final total = entries.fold<double>(0, (sum, e) => sum + e.amount);
     final rows = _rows(entries);
+    final now = DateTime.now();
+    final monthStart = DateTime(now.year, now.month, 1);
+    final previousStart = DateTime(now.year, now.month - 1, 1);
+    final monthExpenses = items.where((e) => !e.date.isBefore(monthStart) && e.date.isBefore(DateTime(now.year, now.month + 1, 1))).toList();
+    final previousExpenses = items.where((e) => !e.date.isBefore(previousStart) && e.date.isBefore(monthStart)).fold<double>(0, (s, e) => s + e.amount);
+    final monthTotal = monthExpenses.fold<double>(0, (s, e) => s + e.amount);
+    final categoryTotals = <String, double>{};
+    for (final item in monthExpenses) { categoryTotals[item.category] = (categoryTotals[item.category] ?? 0) + item.amount; }
+    final largestCategory = categoryTotals.entries.isEmpty ? null : (categoryTotals.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).first;
     return Scaffold(
       appBar: AppBar(
         title: const Text('Expenses'),
@@ -158,6 +167,36 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                     setState(() => query = '');
                                   },
                                 ),
+                        ),
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
+                      child: Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                            Row(children: [
+                              Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                                Text('This month', style: TextStyle(color: context.muted, fontWeight: FontWeight.w600)),
+                                const SizedBox(height: 4),
+                                MaskedText(FinanceCalculator.money(monthTotal), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                              ])),
+                              if (previousExpenses > 0) StatusPill(
+                                '${FinanceCalculator.percentChange(monthTotal, previousExpenses)!.abs().toStringAsFixed(0)}% ${monthTotal >= previousExpenses ? 'up' : 'down'}',
+                                monthTotal > previousExpenses ? AppColors.warning : context.good,
+                              ),
+                            ]),
+                            if (largestCategory != null) ...[
+                              const SizedBox(height: 10),
+                              Row(children: [
+                                Icon(categoryIcon(largestCategory.key), size: 17, color: context.muted),
+                                const SizedBox(width: 7),
+                                Expanded(child: Text('Highest category: ${largestCategory.key}', style: TextStyle(color: context.muted))),
+                                MaskedText(FinanceCalculator.money(largestCategory.value), style: const TextStyle(fontWeight: FontWeight.w700)),
+                              ]),
+                            ],
+                          ]),
                         ),
                       ),
                     ),
