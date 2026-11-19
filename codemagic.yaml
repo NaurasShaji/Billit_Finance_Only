@@ -7,7 +7,10 @@ workflows:
       flutter: stable
       java: 17
     scripts:
-      - name: Install dependencies
+      - name: Configure Android local properties
+        script: |
+          printf "flutter.sdk=%s\nsdk.dir=%s\n" "$FLUTTER_ROOT" "$ANDROID_SDK_ROOT" > android/local.properties
+      - name: Install Flutter dependencies
         script: flutter pub get
       - name: Build release APK
         script: flutter build apk --release
