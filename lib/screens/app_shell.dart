@@ -23,8 +23,8 @@ class _AppShellState extends State<AppShell> {
     const ExpensesScreen(),
     const PayrollScreen(),
     const ReportsScreen(),
-    BackupScreen(onLogout: widget.onLogout),
     const BillPhotosScreen(),
+    BackupScreen(onLogout: widget.onLogout),
   ];
   static const destinations = [
     NavigationDestination(
