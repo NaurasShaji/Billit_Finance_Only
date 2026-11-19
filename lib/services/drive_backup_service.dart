@@ -70,9 +70,15 @@ class DriveBackupService {
     final categoryBudgets = await db.query('category_budgets');
     final recurringExpenses = await db.query('recurring_expenses');
     final appMeta = await db.query('app_meta');
+    final billPhotos = (await db.query('bill_photos')).map((row) {
+      final copy = Map<String, Object?>.from(row);
+      final image = copy.remove('image_data') as Uint8List;
+      copy['image_data_base64'] = base64Encode(image);
+      return copy;
+    }).toList();
     return {
       'format': 'billit-finance-sqlite-json',
-      'version': 3,
+      'version': 4,
       'createdAt': DateTime.now().toIso8601String(),
       'expenses': expenses,
       'employees': employees,
@@ -87,6 +93,7 @@ class DriveBackupService {
       'category_budgets': categoryBudgets,
       'recurring_expenses': recurringExpenses,
       'app_meta': appMeta,
+      'bill_photos': billPhotos,
     };
   }
 
@@ -132,7 +139,7 @@ class DriveBackupService {
     if (decoded is! Map) {
       throw const FormatException('This is not a valid Billit backup.');
     }
-    final isFinanceBackup = decoded['format'] == 'billit-finance-sqlite-json' && (decoded['version'] == 1 || decoded['version'] == 2 || decoded['version'] == 3);
+    final isFinanceBackup = decoded['format'] == 'billit-finance-sqlite-json' && (decoded['version'] == 1 || decoded['version'] == 2 || decoded['version'] == 3 || decoded['version'] == 4);
     final isLegacyBillitBackup = decoded['expenses'] is List && decoded['employees'] is List;
     if (!isFinanceBackup && !isLegacyBillitBackup) {
       throw const FormatException('This backup does not contain compatible Billit finance data.');
@@ -140,6 +147,7 @@ class DriveBackupService {
     final db = await DatabaseService.instance.database;
     await db.transaction((txn) async {
       await txn.delete('cash_transactions');
+      await txn.delete('bill_photos');
       await txn.delete('app_meta');
       await txn.delete('recurring_expenses');
       await txn.delete('category_budgets');
@@ -192,6 +200,13 @@ class DriveBackupService {
         for (final raw in (decoded['category_budgets'] as List? ?? const [])) { await txn.insert('category_budgets', Map<String, Object?>.from(raw as Map)); }
         for (final raw in (decoded['recurring_expenses'] as List? ?? const [])) { await txn.insert('recurring_expenses', Map<String, Object?>.from(raw as Map)); }
         for (final raw in (decoded['app_meta'] as List? ?? const [])) { await txn.insert('app_meta', Map<String, Object?>.from(raw as Map)); }
+        for (final raw in (decoded['bill_photos'] as List? ?? const [])) {
+          final row = Map<String, Object?>.from(raw as Map);
+          final encoded = row.remove('image_data_base64') as String?;
+          if (encoded == null) continue;
+          row['image_data'] = base64Decode(encoded);
+          await txn.insert('bill_photos', row);
+        }
       } else if (isLegacyBillitBackup) {
         // Convert Billit's existing sales into income records while preserving
         // the original sale ID for idempotent future imports.
