@@ -1,9 +1,9 @@
 plugins {
     id("com.android.application")
-    id("kotlin-android")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+@Suppress("DEPRECATION")
 android {
     namespace = "com.example.billitfinance"
     compileSdk = flutter.compileSdkVersion
@@ -12,7 +12,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    kotlinOptions { jvmTarget = JavaVersion.VERSION_17.toString() }
     defaultConfig {
         applicationId = "com.example.billitfinance"
         minSdk = flutter.minSdkVersion
