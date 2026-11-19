@@ -15,7 +15,7 @@ import 'budget_settings_screen.dart';
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key, required this.onNavigate});
 
-  /// Switches the app shell to another tab (0 overview … 5 backup).
+  /// Switches the app shell to another tab.
   final ValueChanged<int> onNavigate;
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
@@ -49,7 +49,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   double? monthlyLimit;
   List<CategoryBudget> categoryLimits = [];
   List<Map<String, Object?>> creditRows = [];
-  bool backupReminderDue = false;
 
   DateTime get start => DateTime(anchor.year, anchor.month, 1);
   DateTime get end => DateTime(anchor.year, anchor.month + 1, 1);
@@ -71,9 +70,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> load() async {
     final db = DatabaseService.instance;
     await db.generateRecurringExpenses(DateTime.now());
-    final backupStamp = await db.metaValue('last_backup_at');
-    final lastBackup = backupStamp == null ? null : DateTime.tryParse(backupStamp);
-    final backupDue = lastBackup == null || DateTime.now().difference(lastBackup).inDays >= 30;
     final monthKey = '${start.year.toString().padLeft(4, '0')}-${start.month.toString().padLeft(2, '0')}';
     final values = await Future.wait<Object?>([
       db.expenses(start: start, end: end),
@@ -111,7 +107,6 @@ class _DashboardScreenState extends State<DashboardScreen> {
       monthlyLimit = budget;
       categoryLimits = limits;
       creditRows = credits;
-      backupReminderDue = backupDue;
       loaded = true;
     });
   }
