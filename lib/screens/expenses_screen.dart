@@ -132,6 +132,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
     final monthExpenses = items.where((e) => !e.date.isBefore(monthStart) && e.date.isBefore(DateTime(now.year, now.month + 1, 1))).toList();
     final previousExpenses = items.where((e) => !e.date.isBefore(previousStart) && e.date.isBefore(monthStart)).fold<double>(0, (s, e) => s + e.amount);
     final monthTotal = monthExpenses.fold<double>(0, (s, e) => s + e.amount);
+    final monthKey = '${now.year.toString().padLeft(4, '0')}-${now.month.toString().padLeft(2, '0')}';
     final categoryTotals = <String, double>{};
     for (final item in monthExpenses) { categoryTotals[item.category] = (categoryTotals[item.category] ?? 0) + item.amount; }
     final largestCategory = categoryTotals.entries.isEmpty ? null : (categoryTotals.entries.toList()..sort((a, b) => b.value.compareTo(a.value))).first;
@@ -165,7 +166,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                         onChanged: (value) => setState(() => query = value),
                         decoration: InputDecoration(
                           prefixIcon: const Icon(Icons.search),
-                          hintText: 'Search',
+                          hintText: 'Search expenses by name, category or amount',
                           suffixIcon: query.isEmpty
                               ? null
                               : IconButton(
@@ -182,12 +183,21 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 2, 16, 10),
                       child: Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(14),
+                        clipBehavior: Clip.antiAlias,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              begin: Alignment.topLeft, end: Alignment.bottomRight,
+                              colors: [context.accent.withValues(alpha: .10), context.softFill],
+                            ),
+                          ),
+                          padding: const EdgeInsets.all(18),
                           child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                             Row(children: [
+                              Container(width: 38, height: 38, decoration: BoxDecoration(color: context.accent.withValues(alpha: .14), borderRadius: BorderRadius.circular(12)), child: Icon(Icons.payments_outlined, color: context.accent)),
+                              const SizedBox(width: 10),
                               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                                Text('This month', style: TextStyle(color: context.muted, fontWeight: FontWeight.w600)),
+                                Text('TOTAL SPENT THIS MONTH', style: TextStyle(color: context.muted, fontWeight: FontWeight.w700, fontSize: 11, letterSpacing: .5)),
                                 const SizedBox(height: 4),
                                 MaskedText(FinanceCalculator.money(monthTotal), style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
                               ])),
@@ -196,12 +206,13 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
                                 monthTotal > previousExpenses ? AppColors.warning : context.good,
                               ),
                             ]),
+                            const SizedBox(height: 12),
                             if (largestCategory != null) ...[
                               const SizedBox(height: 10),
                               Row(children: [
                                 Icon(categoryIcon(largestCategory.key), size: 17, color: context.muted),
                                 const SizedBox(width: 7),
-                                Expanded(child: Text('Highest category: ${largestCategory.key}', style: TextStyle(color: context.muted))),
+                                Expanded(child: Text('Highest: ${largestCategory.key}', style: TextStyle(color: context.muted, fontWeight: FontWeight.w600))),
                                 MaskedText(FinanceCalculator.money(largestCategory.value), style: const TextStyle(fontWeight: FontWeight.w700)),
                               ]),
                             ],
@@ -313,7 +324,7 @@ class _ExpensesScreenState extends State<ExpensesScreen> {
             ),
             subtitle: hasNote ? Text(entry.category) : null,
             trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-              if (entry.receiptPath != null) const Icon(Icons.attachment_outlined, size: 17),
+              if (entry.receiptPath != null) Padding(padding: const EdgeInsets.only(right: 4), child: Icon(Icons.attachment_outlined, size: 17, color: context.accent)),
               IconButton(
                 tooltip: 'Repeat this expense',
                 icon: const Icon(Icons.replay_outlined, size: 20),
