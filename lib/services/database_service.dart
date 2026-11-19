@@ -93,6 +93,7 @@ class DatabaseService {
 
 
   Future<void> _createBudgetTables(DatabaseExecutor db) async {
+    await db.execute("""CREATE TABLE IF NOT EXISTS monthly_budgets (month_key TEXT PRIMARY KEY, limit_amount REAL NOT NULL CHECK(limit_amount > 0))""");
     await db.execute("""CREATE TABLE IF NOT EXISTS category_budgets (
       id INTEGER PRIMARY KEY AUTOINCREMENT, month_key TEXT NOT NULL,
       category TEXT NOT NULL, limit_amount REAL NOT NULL CHECK(limit_amount > 0),
@@ -104,6 +105,13 @@ class DatabaseService {
       active INTEGER NOT NULL DEFAULT 1, last_generated_month TEXT)""");
   }
 
+  Future<double?> totalMonthlyBudget(String monthKey) async {
+    final rows = await (await database).query('monthly_budgets', where: 'month_key = ?', whereArgs: [monthKey], limit: 1);
+    return rows.isEmpty ? null : (rows.first['limit_amount'] as num).toDouble();
+  }
+  Future<void> saveMonthlyBudget(String monthKey, double limit) async {
+    await _write((db) => db.insert('monthly_budgets', {'month_key': monthKey, 'limit_amount': limit}, conflictAlgorithm: ConflictAlgorithm.replace));
+  }
   Future<double?> monthlyBudget(String monthKey) async {
     final rows = await (await database).query('category_budgets', columns: ['SUM(limit_amount) AS total'], where: 'month_key = ?', whereArgs: [monthKey]);
     final value = rows.first['total'] as num?;
