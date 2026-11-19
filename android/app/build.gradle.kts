@@ -1,9 +1,10 @@
+@file:Suppress("DEPRECATION")
+
 plugins {
     id("com.android.application")
     id("dev.flutter.flutter-gradle-plugin")
 }
 
-@Suppress("DEPRECATION")
 android {
     namespace = "com.example.billitfinance"
     compileSdk = flutter.compileSdkVersion
