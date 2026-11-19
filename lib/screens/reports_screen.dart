@@ -29,6 +29,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   List<ExpenseRecord> expenses = [];
   List<PayrollPayment> payroll = [];
   List<IncomeRecord> income = [];
+  List<Map<String, Object?>> creditBalanceRows = [];
+  double collectedTotal = 0;
 
   DateTime get start => period == 'day'
       ? DateTime(anchor.year, anchor.month, anchor.day)
@@ -59,12 +61,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
       DatabaseService.instance.expenses(start: start, end: end),
       DatabaseService.instance.payroll(start: start, end: end),
       DatabaseService.instance.income(start: start, end: end),
+      DatabaseService.instance.incomeCollected(start: start, end: end),
+      DatabaseService.instance.creditBalances(),
     ]);
     if (!mounted) return;
     setState(() {
       expenses = values[0] as List<ExpenseRecord>;
       payroll = values[1] as List<PayrollPayment>;
       income = values[2] as List<IncomeRecord>;
+      collectedTotal = values[3] as double;
+      creditBalanceRows = values[4] as List<Map<String, Object?>>;
       loaded = true;
     });
   }
@@ -72,6 +78,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
   double get expenseTotal => expenses.fold<double>(0, (s, e) => s + e.amount);
   double get payrollTotal => payroll.fold<double>(0, (s, e) => s + e.amount);
   double get incomeTotal => income.fold<double>(0, (s, e) => s + e.amount);
+  double get outstandingSales => (incomeTotal - collectedTotal).clamp(0, double.infinity).toDouble();
+  double get outstandingCredit => creditBalanceRows.fold<double>(0, (sum, row) => sum + ((row['balance'] as num?)?.toDouble() ?? 0).abs());
   double get costOfGoodsSold =>
       income.fold<double>(0, (s, e) => s + e.costAmount);
   double get grossProfit => incomeTotal - costOfGoodsSold;
@@ -416,6 +424,43 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             for (final t in tiles)
                               SizedBox(width: cardWidth, child: t),
                           ],
+                        ),
+                        const SectionHeader('Cash collection'),
+                        Card(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(children: [
+                              FinanceUiRow(label: 'Sales recorded', value: incomeTotal),
+                              FinanceUiRow(label: 'Collected', value: collectedTotal),
+                              FinanceUiRow(label: 'Pending collection', value: outstandingSales, emphasize: true),
+                              const SizedBox(height: 8),
+                              ClipRRect(
+                                borderRadius: BorderRadius.circular(8),
+                                child: LinearProgressIndicator(
+                                  minHeight: 8,
+                                  value: incomeTotal <= 0 ? 0 : (collectedTotal / incomeTotal).clamp(0, 1),
+                                  backgroundColor: context.hairline,
+                                  color: context.good,
+                                ),
+                              ),
+                            ]),
+                          ),
+                        ),
+                        const SectionHeader('Outstanding credit ledger'),
+                        Card(
+                          child: creditBalanceRows.isEmpty
+                              ? const EmptyState(title: 'No credit parties recorded', icon: Icons.account_balance_wallet_outlined)
+                              : Column(children: [
+                                  for (final row in creditBalanceRows)
+                                    ListTile(
+                                      title: Text((row['name'] ?? 'Party').toString()),
+                                      subtitle: Text((row['type'] ?? '').toString()),
+                                      trailing: MaskedText(
+                                        FinanceCalculator.money(((row['balance'] as num?)?.toDouble() ?? 0).abs()),
+                                        style: const TextStyle(fontWeight: FontWeight.w800),
+                                      ),
+                                    ),
+                                ]),
                         ),
                         const SectionHeader('Where sales go'),
                         Card(
