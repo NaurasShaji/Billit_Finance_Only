@@ -16,7 +16,10 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int index = 0;
   late final pages = [
-    DashboardScreen(onNavigate: (i) => setState(() => index = i)),
+    DashboardScreen(
+      onNavigate: (i) => setState(() => index = i),
+      onLogout: widget.onLogout,
+    ),
     const FinanceOperationsScreen(),
     const ExpensesScreen(),
     const PayrollScreen(),
