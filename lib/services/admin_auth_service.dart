@@ -1,4 +1,5 @@
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:uuid/uuid.dart';
@@ -11,6 +12,7 @@ class AdminAuthService {
   static const _hashKey = 'admin_password_hash';
   static const _mustChangeKey = 'admin_password_change_required';
   static const _sessionKey = 'admin_authenticated_session';
+  final ValueNotifier<bool> sessionActive = ValueNotifier<bool>(false);
   // Shared initial installer password. The owner must replace it before entry.
   static const defaultAdminPassword = 'Billit@Shop#Start2026!Secure';
 
@@ -42,6 +44,7 @@ class AdminAuthService {
     } else {
       await _storage.delete(key: _sessionKey);
     }
+    sessionActive.value = active;
   }
 
   static const securityQuestions = <String, String>{
