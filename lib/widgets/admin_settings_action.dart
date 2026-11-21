@@ -4,18 +4,16 @@ import '../services/admin_auth_service.dart';
 import '../theme/app_theme.dart';
 
 class AdminSettingsAction extends StatelessWidget {
-  const AdminSettingsAction({super.key, required this.onLogout});
-  final VoidCallback onLogout;
+  const AdminSettingsAction({super.key});
   @override
   Widget build(BuildContext context) => IconButton(
     tooltip: 'Admin settings',
     icon: const Icon(Icons.settings_outlined),
-    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _AdminSettingsPage(onLogout: onLogout))),
+    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _AdminSettingsPage())),
   );
 }
 class _AdminSettingsPage extends StatelessWidget {
-  const _AdminSettingsPage({required this.onLogout});
-  final VoidCallback onLogout;
+  const _AdminSettingsPage();
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Settings')),
@@ -74,8 +72,8 @@ class _AdminSettingsPage extends StatelessWidget {
               ),
             );
             if (shouldLogout == true && context.mounted) {
-              Navigator.of(context).pop();
-              onLogout();
+              await AdminAuthService.instance.setSessionActive(false);
+              if (context.mounted) Navigator.of(context).pop();
             }
           },
         ),
