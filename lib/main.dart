@@ -6,6 +6,7 @@ import 'package:sqflite_common_ffi_web/sqflite_ffi_web.dart';
 import 'screens/app_shell.dart';
 import 'screens/login_screen.dart';
 import 'services/database_service.dart';
+import 'services/admin_auth_service.dart';
 import 'theme/app_theme.dart';
 
 Future<void> main() async {
@@ -104,18 +105,57 @@ class _AuthGate extends StatefulWidget {
 
 class _AuthGateState extends State<_AuthGate> {
   bool authenticated = false;
+  bool restoringSession = true;
 
   @override
-  Widget build(BuildContext context) => AnimatedSwitcher(
-    duration: const Duration(milliseconds: 250),
-    child: authenticated
-        ? AppShell(
-            key: const ValueKey('shell'),
-            onLogout: () => setState(() => authenticated = false),
-          )
-        : LoginScreen(
-            key: const ValueKey('login'),
-            onAuthenticated: () => setState(() => authenticated = true),
-          ),
-  );
+  void initState() {
+    super.initState();
+    _restoreSession();
+  }
+
+  Future<void> _restoreSession() async {
+    try {
+      final active = await AdminAuthService.instance.hasActiveSession;
+      if (!mounted) return;
+      setState(() {
+        authenticated = active;
+        restoringSession = false;
+      });
+    } catch (error, stackTrace) {
+      debugPrint('Could not restore login session: $error');
+      debugPrintStack(stackTrace: stackTrace);
+      if (mounted) setState(() => restoringSession = false);
+    }
+  }
+
+  Future<void> _login() async {
+    await AdminAuthService.instance.setSessionActive(true);
+    if (mounted) setState(() => authenticated = true);
+  }
+
+  Future<void> _logout() async {
+    await AdminAuthService.instance.setSessionActive(false);
+    if (mounted) setState(() => authenticated = false);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (restoringSession) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      child: authenticated
+          ? AppShell(
+              key: const ValueKey('shell'),
+              onLogout: _logout,
+            )
+          : LoginScreen(
+              key: const ValueKey('login'),
+              onAuthenticated: _login,
+            ),
+    );
+  }
 }
