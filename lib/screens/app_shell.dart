@@ -7,8 +7,7 @@ import 'reports_screen.dart';
 import 'finance_operations_screen.dart';
 
 class AppShell extends StatefulWidget {
-  const AppShell({super.key, required this.onLogout});
-  final VoidCallback onLogout;
+  const AppShell({super.key});
   @override
   State<AppShell> createState() => _AppShellState();
 }
@@ -16,10 +15,7 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   int index = 0;
   late final pages = [
-    DashboardScreen(
-      onNavigate: (i) => setState(() => index = i),
-      onLogout: widget.onLogout,
-    ),
+    DashboardScreen(onNavigate: (i) => setState(() => index = i)),
     const FinanceOperationsScreen(),
     const ExpensesScreen(),
     const PayrollScreen(),
