@@ -104,7 +104,6 @@ class _AuthGate extends StatefulWidget {
 }
 
 class _AuthGateState extends State<_AuthGate> {
-  bool authenticated = false;
   bool restoringSession = true;
 
   @override
@@ -116,27 +115,17 @@ class _AuthGateState extends State<_AuthGate> {
   Future<void> _restoreSession() async {
     try {
       final active = await AdminAuthService.instance.hasActiveSession;
-      if (!mounted) return;
-      setState(() {
-        authenticated = active;
-        restoringSession = false;
-      });
+      await AdminAuthService.instance.setSessionActive(active);
     } catch (error, stackTrace) {
       debugPrint('Could not restore login session: $error');
       debugPrintStack(stackTrace: stackTrace);
+    } finally {
       if (mounted) setState(() => restoringSession = false);
     }
   }
 
-  Future<void> _login() async {
-    await AdminAuthService.instance.setSessionActive(true);
-    if (mounted) setState(() => authenticated = true);
-  }
-
-  Future<void> _logout() async {
-    await AdminAuthService.instance.setSessionActive(false);
-    if (mounted) setState(() => authenticated = false);
-  }
+  Future<void> _login() =>
+      AdminAuthService.instance.setSessionActive(true);
 
   @override
   Widget build(BuildContext context) {
@@ -145,17 +134,17 @@ class _AuthGateState extends State<_AuthGate> {
         body: Center(child: CircularProgressIndicator()),
       );
     }
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 250),
-      child: authenticated
-          ? AppShell(
-              key: const ValueKey('shell'),
-              onLogout: _logout,
-            )
-          : LoginScreen(
-              key: const ValueKey('login'),
-              onAuthenticated: _login,
-            ),
+    return ValueListenableBuilder<bool>(
+      valueListenable: AdminAuthService.instance.sessionActive,
+      builder: (context, authenticated, _) => AnimatedSwitcher(
+        duration: const Duration(milliseconds: 250),
+        child: authenticated
+            ? const AppShell(key: ValueKey('shell'))
+            : LoginScreen(
+                key: const ValueKey('login'),
+                onAuthenticated: _login,
+              ),
+      ),
     );
   }
 }
