@@ -10,6 +10,7 @@ class AdminAuthService {
   static const _saltKey = 'admin_password_salt';
   static const _hashKey = 'admin_password_hash';
   static const _mustChangeKey = 'admin_password_change_required';
+  static const _sessionKey = 'admin_authenticated_session';
   // Shared initial installer password. The owner must replace it before entry.
   static const defaultAdminPassword = 'Billit@Shop#Start2026!Secure';
 
@@ -30,6 +31,18 @@ class AdminAuthService {
 
   Future<bool> get mustChangePassword async =>
       (await _storage.read(key: _mustChangeKey)) == 'true';
+
+  /// A session remains active across app restarts until the user logs out.
+  Future<bool> get hasActiveSession async =>
+      (await _storage.read(key: _sessionKey)) == 'true';
+
+  Future<void> setSessionActive(bool active) async {
+    if (active) {
+      await _storage.write(key: _sessionKey, value: 'true');
+    } else {
+      await _storage.delete(key: _sessionKey);
+    }
+  }
 
   static const securityQuestions = <String, String>{
     'school': 'What was the name of your first school?',
