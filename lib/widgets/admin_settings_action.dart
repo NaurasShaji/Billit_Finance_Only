@@ -4,16 +4,18 @@ import '../services/admin_auth_service.dart';
 import '../theme/app_theme.dart';
 
 class AdminSettingsAction extends StatelessWidget {
-  const AdminSettingsAction({super.key});
+  const AdminSettingsAction({super.key, required this.onLogout});
+  final VoidCallback onLogout;
   @override
   Widget build(BuildContext context) => IconButton(
     tooltip: 'Admin settings',
     icon: const Icon(Icons.settings_outlined),
-    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _AdminSettingsPage())),
+    onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => _AdminSettingsPage(onLogout: onLogout))),
   );
 }
 class _AdminSettingsPage extends StatelessWidget {
-  const _AdminSettingsPage();
+  const _AdminSettingsPage({required this.onLogout});
+  final VoidCallback onLogout;
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Settings')),
@@ -45,6 +47,39 @@ class _AdminSettingsPage extends StatelessWidget {
       const SizedBox(height: 20),
       Card(child: ListTile(leading: const Icon(Icons.lock_outline), title: const Text('Change password'), subtitle: const Text('Update the administrator password'), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _ChangePasswordPage())))),
       Card(child: ListTile(leading: const Icon(Icons.quiz_outlined), title: const Text('Recovery question'), subtitle: const Text('Update the password recovery answer'), trailing: const Icon(Icons.chevron_right), onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => const _RecoveryQuestionPage())))),
+      const SizedBox(height: 20),
+      const Text('Session', style: TextStyle(fontWeight: FontWeight.w700)),
+      const SizedBox(height: 8),
+      Card(
+        child: ListTile(
+          leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
+          title: Text('Log out', style: TextStyle(color: Theme.of(context).colorScheme.error, fontWeight: FontWeight.w600)),
+          subtitle: const Text('End this session and require your password next time'),
+          onTap: () async {
+            final shouldLogout = await showDialog<bool>(
+              context: context,
+              builder: (dialogContext) => AlertDialog(
+                title: const Text('Log out of Billit Finance?'),
+                content: const Text('You will need to enter your admin password the next time you open the app.'),
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(dialogContext, false),
+                    child: const Text('Cancel'),
+                  ),
+                  FilledButton(
+                    onPressed: () => Navigator.pop(dialogContext, true),
+                    child: const Text('Log out'),
+                  ),
+                ],
+              ),
+            );
+            if (shouldLogout == true && context.mounted) {
+              Navigator.of(context).pop();
+              onLogout();
+            }
+          },
+        ),
+      ),
     ]))),
   );
 }
