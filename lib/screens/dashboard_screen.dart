@@ -13,10 +13,11 @@ import 'entry_form_screens.dart';
 import 'budget_settings_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
-  const DashboardScreen({super.key, required this.onNavigate});
+  const DashboardScreen({super.key, required this.onNavigate, required this.onLogout});
 
   /// Switches the app shell to another tab.
   final ValueChanged<int> onNavigate;
+  final VoidCallback onLogout;
   @override
   State<DashboardScreen> createState() => _DashboardScreenState();
 }
@@ -184,7 +185,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ),
             ),
           ),
-          const AdminSettingsAction(),
+          AdminSettingsAction(onLogout: onLogout),
         ],
       ),
       body: !loaded
